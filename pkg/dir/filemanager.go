@@ -23,7 +23,7 @@ type FileManager struct {
 	config     *config.Config
 	storage    storage.Client
 	workingDir string
-	cryptoKey  []byte
+	cipher     crypto.Cipher
 	logger     *slog.Logger
 }
 
@@ -33,7 +33,7 @@ func NewFileManager(cfg *config.Config, storage storage.Client, logger *slog.Log
 		config:     cfg,
 		storage:    storage,
 		workingDir: cfg.TargetDir,
-		cryptoKey:  crypto.DeriveKeyFromPassword(cfg.CryptoKey),
+		cipher:     crypto.NewAESGCM(cfg.CryptoKey),
 		logger:     logger,
 	}
 }
@@ -49,7 +49,7 @@ func (fm *FileManager) EncryptAndUploadFile(filePath, relativePath string) error
 		return fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
 
-	encrypted, err := crypto.EncryptAESGCM(fm.cryptoKey, data)
+	encrypted, err := fm.cipher.Encrypt(data)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt file %s: %w", filePath, err)
 	}
@@ -95,7 +95,7 @@ func (fm *FileManager) DownloadAndDecryptFile(remotePath, localPath string) erro
 		return fmt.Errorf("failed to download file %s: %w", remotePath, err)
 	}
 
-	decrypted, err := crypto.DecryptAESGCM(fm.cryptoKey, encrypted)
+	decrypted, err := fm.cipher.Decrypt(encrypted)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt file %s: %w", remotePath, err)
 	}

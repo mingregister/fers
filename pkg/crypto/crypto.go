@@ -9,16 +9,35 @@ import (
 	"io"
 )
 
-// ----------------------------
-// 加密/解密：AES-GCM (key derived as sha256(passphrase))
-// ----------------------------
-func DeriveKeyFromPassword(pass string) []byte {
-	h := sha256.Sum256([]byte(pass))
-	return h[:] // 32 bytes for AES-256
+// 加密行为
+type Encrypter interface {
+	Encrypt(plain []byte) (cipher []byte, err error)
 }
 
-func EncryptAESGCM(key []byte, plaintext []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+// 解密行为
+type Decrypter interface {
+	Decrypt(cipher []byte) (plain []byte, err error)
+}
+
+// 加解密一体
+type Cipher interface {
+	Encrypter
+	Decrypter
+}
+
+type aesGCM struct {
+	key []byte
+}
+
+func NewAESGCM(password string) Cipher {
+	h := sha256.Sum256([]byte(password))
+	return &aesGCM{key: h[:]}
+}
+
+var _ Cipher = &aesGCM{}
+
+func (ag *aesGCM) Encrypt(plain []byte) ([]byte, error) {
+	block, err := aes.NewCipher(ag.key)
 	if err != nil {
 		return nil, err
 	}
@@ -30,14 +49,14 @@ func EncryptAESGCM(key []byte, plaintext []byte) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
-	ciphertext := gcm.Seal(nil, nonce, plaintext, nil)
+	ciphertext := gcm.Seal(nil, nonce, plain, nil)
 	// store nonce + ciphertext
 	out := append(nonce, ciphertext...)
 	return out, nil
 }
 
-func DecryptAESGCM(key []byte, data []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
+func (ag *aesGCM) Decrypt(cipherData []byte) (plain []byte, err error) {
+	block, err := aes.NewCipher(ag.key)
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +65,10 @@ func DecryptAESGCM(key []byte, data []byte) ([]byte, error) {
 		return nil, err
 	}
 	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
+	if len(cipherData) < nonceSize {
 		return nil, fmt.Errorf("ciphertext too short")
 	}
-	nonce := data[:nonceSize]
-	ct := data[nonceSize:]
+	nonce := cipherData[:nonceSize]
+	ct := cipherData[nonceSize:]
 	return gcm.Open(nil, nonce, ct, nil)
 }
