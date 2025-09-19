@@ -17,7 +17,7 @@ REM 清理 Go 缓存（可选）
 REM go clean -cache
 
 REM 编译当前目录
-go build -o app.exe cmd\fers\main.go
+go build -o app.exe main.go
 
 REM 提示完成
 echo.

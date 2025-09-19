@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/fers/main.go",
+            "program": "${workspaceFolder}/main.go",
             "envFile": "${workspaceFolder}/.env",
             "showLog": true
         }

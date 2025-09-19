@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	App = app.New()
+	App = app.NewWithID("fers")
 )
 
 func main() {
 	w := App.NewWindow("Hello")
-	w.Resize(fyne.NewSize(1200, 900))
+	w.Resize(fyne.NewSize(1250, 900))
 
 	hello := widget.NewLabel("Hello Fyne!")
 	w.SetContent(container.NewVBox(
