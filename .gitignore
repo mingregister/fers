@@ -1,0 +1,8 @@
+.env
+.envrc
+app.exe
+*.exe
+
+.vscode
+!.vscode/launch.json
+!.vscode/tasks.json
