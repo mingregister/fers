@@ -210,6 +210,10 @@ type AppUI struct {
 	selectedIndex int
 	selectedName  string
 
+	// Directory navigation
+	currentDir string // 当前显示的目录
+	dirLabel   *widget.Label
+
 	// Operation management
 	operationMutex sync.Mutex
 	cancelFunc     context.CancelFunc
@@ -228,6 +232,7 @@ func NewAppUI(fileManager *FileManager, logger *slog.Logger) *AppUI {
 		fileManager:   fileManager,
 		logger:        logger,
 		selectedIndex: -1,
+		currentDir:    fileManager.workingDir, // 初始化为workingDir
 	}
 
 	ui.setupUI()
@@ -236,8 +241,9 @@ func NewAppUI(fileManager *FileManager, logger *slog.Logger) *AppUI {
 
 // setupUI initializes the user interface
 func (ui *AppUI) setupUI() {
-	// Working directory label
-	dirLabel := widget.NewLabel("Working dir: " + ui.fileManager.workingDir)
+	// Directory labels
+	workingDirLabel := widget.NewLabel("Working dir: " + ui.fileManager.workingDir)
+	ui.dirLabel = widget.NewLabel("Current dir: " + ui.currentDir)
 
 	// File list
 	ui.refreshItems()
@@ -255,8 +261,16 @@ func (ui *AppUI) setupUI() {
 		ui.selectedName = ui.items[i]
 	}
 
-	// Buttons
+	// Navigation buttons
+	navButtons := container.NewHBox(
+		widget.NewButton("Up", ui.goUpDirectory),
+		widget.NewButton("Enter", ui.enterSelectedDirectory),
+	)
+
+	// Operation buttons
 	buttons := container.NewVBox(
+		navButtons,
+		widget.NewSeparator(),
 		ui.createEncryptUploadButton(),
 		ui.createSyncDownloadButton(),
 		ui.createSyncUploadButton(),
@@ -265,14 +279,15 @@ func (ui *AppUI) setupUI() {
 	)
 
 	// Layout
-	ListPane := container.NewBorder(dirLabel, nil, nil, nil, ui.list)
+	dirLabels := container.NewVBox(workingDirLabel, ui.dirLabel)
+	ListPane := container.NewBorder(dirLabels, nil, nil, nil, ui.list)
 	content := container.NewBorder(nil, nil, buttons, nil, ListPane)
 	ui.window.SetContent(content)
 }
 
 // refreshItems updates the items list
 func (ui *AppUI) refreshItems() {
-	ui.items = dir.List(ui.fileManager.workingDir)
+	ui.items = dir.List(ui.currentDir)
 }
 
 // refreshList refreshes the UI list
@@ -280,6 +295,77 @@ func (ui *AppUI) refreshList() {
 	ui.refreshItems()
 	ui.list.Length = func() int { return len(ui.items) }
 	ui.list.Refresh()
+}
+
+// goUpDirectory navigates to the parent directory
+func (ui *AppUI) goUpDirectory() {
+	// 清理当前路径
+	cleanCurrentDir := filepath.Clean(ui.currentDir)
+	cleanWorkingDir := filepath.Clean(ui.fileManager.workingDir)
+
+	// 不能超出workingDir的范围
+	if cleanCurrentDir == cleanWorkingDir {
+		dialog.ShowInformation("Info", "Already at working directory root", ui.window)
+		return
+	}
+
+	parentDir := filepath.Dir(cleanCurrentDir)
+
+	// 使用相对路径检查是否在workingDir范围内
+	relPath, err := filepath.Rel(cleanWorkingDir, parentDir)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		parentDir = cleanWorkingDir
+	}
+
+	ui.currentDir = parentDir
+	ui.dirLabel.SetText("Current dir: " + ui.currentDir)
+	ui.refreshList()
+	ui.selectedIndex = -1
+	ui.selectedName = ""
+}
+
+// enterSelectedDirectory enters the selected directory
+func (ui *AppUI) enterSelectedDirectory() {
+	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
+		dialog.ShowInformation("Info", "Please select a directory first", ui.window)
+		return
+	}
+
+	ui.enterDirectory(ui.selectedName)
+}
+
+// enterDirectory enters the specified directory
+func (ui *AppUI) enterDirectory(dirName string) {
+	fullPath := filepath.Join(ui.currentDir, dirName)
+
+	// 检查是否是目录
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to access %s: %w", dirName, err), ui.window)
+		return
+	}
+
+	if !info.IsDir() {
+		dialog.ShowInformation("Info", "Selected item is not a directory", ui.window)
+		return
+	}
+
+	// 清理路径并确保不会超出workingDir的范围
+	cleanFullPath := filepath.Clean(fullPath)
+	cleanWorkingDir := filepath.Clean(ui.fileManager.workingDir)
+
+	// 使用相对路径检查是否在workingDir范围内
+	relPath, err := filepath.Rel(cleanWorkingDir, cleanFullPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		dialog.ShowInformation("Info", "Cannot navigate outside working directory", ui.window)
+		return
+	}
+
+	ui.currentDir = cleanFullPath
+	ui.dirLabel.SetText("Current dir: " + ui.currentDir)
+	ui.refreshList()
+	ui.selectedIndex = -1
+	ui.selectedName = ""
 }
 
 // createEncryptUploadButton creates the encrypt and upload button
@@ -292,17 +378,24 @@ func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 
 		ui.runOperation("Encrypt & Upload", func(ctx context.Context) error {
 			name := ui.selectedName
-			fullPath := filepath.Join(ui.fileManager.workingDir, name)
+			// 使用当前目录的完整路径
+			fullPath := filepath.Join(ui.currentDir, name)
 
 			info, err := os.Stat(fullPath)
 			if err != nil {
 				return fmt.Errorf("failed to stat file %s: %w", fullPath, err)
 			}
 
+			// 计算相对于workingDir的路径
+			relativePath, err := filepath.Rel(ui.fileManager.workingDir, fullPath)
+			if err != nil {
+				return fmt.Errorf("failed to get relative path for %s: %w", fullPath, err)
+			}
+
 			if info.IsDir() {
 				return ui.fileManager.EncryptAndUploadDirectory(ctx, fullPath)
 			} else {
-				return ui.fileManager.EncryptAndUploadFile(fullPath, name)
+				return ui.fileManager.EncryptAndUploadFile(fullPath, relativePath)
 			}
 		})
 	})
