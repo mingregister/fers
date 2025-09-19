@@ -4,7 +4,8 @@
         {
             "label": "Build Go App (CGO Enabled)",
             "type": "shell",
-            "command": "go build -o app.exe main.go",
+            // "command": "go build -o app.exe main.go",
+            "command": "fyne build",
             "options": {
                 "envFile": "${workspaceFolder}/.env"
             },
