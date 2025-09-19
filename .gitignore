@@ -9,3 +9,4 @@ tmp
 .vscode
 !.vscode/launch.json
 !.vscode/tasks.json
+config.yaml

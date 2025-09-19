@@ -2,11 +2,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
 	"github.com/mingregister/fers/pkg/appui"
 	"github.com/mingregister/fers/pkg/config"
 	"github.com/mingregister/fers/pkg/dir"
@@ -22,9 +27,22 @@ func initLogger(w io.Writer) *slog.Logger {
 	return slog.New(handler)
 }
 
+func showFatalError(msg string) {
+	a := app.New()
+	w := a.NewWindow("启动失败")
+	w.SetContent(widget.NewLabel(msg))
+	w.Resize(fyne.NewSize(400, 200))
+	dialog.ShowError(errors.New(msg), w)
+	w.ShowAndRun() // 阻塞，用户关掉窗口后进程退出
+}
+
 func main() {
 	// Initialize configuration
-	cfg := config.NewConfig()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		showFatalError(err.Error())
+		return
+	}
 
 	// Initialize logger
 	logFile, err := os.OpenFile(cfg.Log, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
