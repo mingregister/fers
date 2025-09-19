@@ -2,6 +2,7 @@
 .envrc
 app.exe
 *.exe
+tmp
 
 .vscode
 !.vscode/launch.json
