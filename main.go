@@ -16,10 +16,15 @@ func main() {
 	w.Resize(fyne.NewSize(1200, 900))
 
 	hello := widget.NewLabel("Hello Fyne!")
+	hi := widget.NewLabel("hi Fyne!")
 	w.SetContent(container.NewVBox(
 		hello,
 		widget.NewButton("Hi!", func() {
 			hello.SetText("Welcome :)")
+		}),
+		hi,
+		widget.NewButton("Hi!", func() {
+			hi.SetText("HI Welcome :)")
 		}),
 	))
 
