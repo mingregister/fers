@@ -4,11 +4,11 @@ tmp_dir = "tmp"
 
 [build]
 args_bin = []
-bin = "tmp\\fers.exe"
-cmd = "fyne build -o tmp/fers.exe"
+bin = "fers.exe"
+cmd = "fyne build -o fers.exe"
 delay = 1000
 exclude_dir = ["assets", "tmp", "vendor", "testdata"]
-exclude_file = ["fyne_metadata_init.go"]
+exclude_file = ["fyne_metadata_init.go", "fers.exe"]
 exclude_regex = ["_test.go"]
 exclude_unchanged = false
 follow_symlink = false

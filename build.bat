@@ -18,7 +18,7 @@ REM go clean -cache
 
 REM 编译当前目录
 @REM go build -o app.exe main.go
-fyne build -o tmp/fers.exe
+fyne build -o fers.exe
 
 REM 提示完成
 echo.
