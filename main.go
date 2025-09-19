@@ -12,12 +12,46 @@ var (
 )
 
 func main() {
-	w := App.NewWindow("Hello")
+	w := App.NewWindow("fers")
 	w.Resize(fyne.NewSize(1200, 900))
+	w.CenterOnScreen()
+	menu := createMenu()
+	content := createContent()
+	sidebar := createSideBar()
 
-	hello := widget.NewLabel("Hello Fyne!")
+	layout := container.NewBorder(nil, nil, sidebar, nil, content)
+
+	w.SetMainMenu(menu)
+	w.SetContent(layout)
+
+	w.Show()
+	App.Run()
+}
+
+func createMenu() *fyne.MainMenu {
+	open := fyne.NewMenuItem("open", func() {})
+	save := fyne.NewMenuItem("save", func() {})
+
+	filemenu := fyne.NewMenu("file", open, save)
+
+	mainMenu := fyne.NewMainMenu(filemenu)
+	return mainMenu
+}
+
+func createSideBar() *fyne.Container {
+	sidebar := container.NewVBox(
+		widget.NewButton("Home", func() { println("Home clicked") }),
+		widget.NewButton("Settings", func() { println("Settings clicked") }),
+		widget.NewButton("About", func() { println("About clicked") }),
+	)
+	return sidebar
+}
+
+func createContent() *fyne.Container {
+	// 主内容区
+	hello := widget.NewLabel("你好 Fyne!")
 	hi := widget.NewLabel("hi Fyne!")
-	w.SetContent(container.NewVBox(
+	content := container.NewVBox(
 		hello,
 		widget.NewButton("Hi!", func() {
 			hello.SetText("Welcome :)")
@@ -26,7 +60,6 @@ func main() {
 		widget.NewButton("Hi!", func() {
 			hi.SetText("HI Welcome :)")
 		}),
-	))
-
-	w.ShowAndRun()
+	)
+	return content
 }
