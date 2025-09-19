@@ -2,17 +2,17 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
-	fyneapp "fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
 
 var (
-	app = fyneapp.New()
+	App = app.New()
 )
 
 func main() {
-	w := app.NewWindow("Hello")
+	w := App.NewWindow("Hello")
 	w.Resize(fyne.NewSize(1200, 900))
 
 	hello := widget.NewLabel("Hello Fyne!")
