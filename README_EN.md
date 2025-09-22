@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![FERS Logo](Icon.jpg)
+<img src="Icon.jpg" alt="FERS Logo" width="80" height="80">
 
 **A secure and user-friendly file encryption and cloud storage management tool**
 
