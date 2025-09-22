@@ -135,8 +135,8 @@ func (ui *AppUI) setupUI() {
 	ListPane := container.NewBorder(dirLabels, nil, nil, nil, ui.list)
 
 	// Create main content with file list on left and log on right
-	mainContent := container.NewHSplit(ListPane, logScroll)
-	mainContent.SetOffset(0.6) // 60% for file list, 40% for logs
+	mainContent := container.NewVSplit(ListPane, logScroll)
+	mainContent.SetOffset(0.8) // 80% for file list, 40% for logs
 
 	content := container.NewBorder(nil, nil, buttons, nil, mainContent)
 	ui.window.SetContent(content)
