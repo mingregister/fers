@@ -93,7 +93,9 @@ func (ui *AppUI) setupUI() {
 		widget.NewSeparator(),
 		ui.createEncryptUploadButton(),
 		ui.createSyncDownloadButton(),
+		ui.createDownloadSpecificButton(),
 		ui.createSyncUploadButton(),
+		ui.createDeleteLocalFileButton(),
 		widget.NewButton("Refresh", ui.refreshList),
 		ui.createCancelButton(),
 	)
@@ -115,6 +117,10 @@ func (ui *AppUI) refreshList() {
 	ui.refreshItems()
 	ui.list.Length = func() int { return len(ui.items) }
 	ui.list.Refresh()
+	// 清除选择状态
+	ui.list.UnselectAll()
+	ui.selectedIndex = -1
+	ui.selectedName = ""
 }
 
 // goUpDirectory navigates to the parent directory
@@ -140,8 +146,6 @@ func (ui *AppUI) goUpDirectory() {
 	ui.currentDir = parentDir
 	ui.dirLabel.SetText("Current dir: " + ui.currentDir)
 	ui.refreshList()
-	ui.selectedIndex = -1
-	ui.selectedName = ""
 }
 
 // enterSelectedDirectory enters the selected directory
@@ -191,7 +195,8 @@ func (ui *AppUI) enterDirectory(dirName string) {
 // createEncryptUploadButton creates the encrypt and upload button
 func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 	return widget.NewButton("Encrypt & Upload", func() {
-		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
+		// 检查是否有选中的项目
+		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
 			dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
 			return
 		}
@@ -231,6 +236,60 @@ func (ui *AppUI) createSyncDownloadButton() *widget.Button {
 			}
 			return err
 		})
+	})
+}
+
+// createDownloadSpecificButton creates the download specific file button
+func (ui *AppUI) createDownloadSpecificButton() *widget.Button {
+	return widget.NewButton("Download Specific", func() {
+		ui.showRemoteFileDialog()
+	})
+}
+
+// createDeleteLocalFileButton creates the delete local file button
+func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
+	return widget.NewButton("Delete Local File", func() {
+		// 检查是否有选中的项目
+		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+			dialog.ShowInformation("Info", "Please select a file first", ui.window)
+			return
+		}
+
+		name := ui.selectedName
+		fullPath := filepath.Join(ui.currentDir, name)
+
+		// 检查是否是文件
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to access %s: %w", name, err), ui.window)
+			return
+		}
+
+		if info.IsDir() {
+			dialog.ShowInformation("Info", "Please select a file, not a directory", ui.window)
+			return
+		}
+
+		// 计算相对路径
+		relativePath, err := filepath.Rel(ui.fileManager.GetWorkingDir(), fullPath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to get relative path: %w", err), ui.window)
+			return
+		}
+
+		// 确认删除
+		dialog.ShowConfirm("Confirm Delete",
+			fmt.Sprintf("Are you sure you want to delete the local file: %s?", relativePath),
+			func(confirmed bool) {
+				if confirmed {
+					if err := ui.fileManager.DeleteLocalFile(relativePath); err != nil {
+						dialog.ShowError(err, ui.window)
+					} else {
+						ui.refreshList()
+						dialog.ShowInformation("Success", "File deleted successfully", ui.window)
+					}
+				}
+			}, ui.window)
 	})
 }
 
@@ -292,6 +351,116 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 
 		ui.logger.Info("Operation completed successfully", slog.String("operation", operationName))
 	}()
+}
+
+// showRemoteFileDialog shows a dialog to select and download remote files
+func (ui *AppUI) showRemoteFileDialog() {
+	// 获取远程文件列表
+	remoteFiles, err := ui.fileManager.ListRemoteFiles()
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
+		return
+	}
+
+	if len(remoteFiles) == 0 {
+		dialog.ShowInformation("Info", "No remote files found", ui.window)
+		return
+	}
+
+	// 创建新窗口显示远程文件
+	remoteWindow := ui.app.NewWindow("Remote Files")
+	remoteWindow.Resize(fyne.NewSize(700, 500))
+	remoteWindow.CenterOnScreen()
+
+	// 创建多选文件列表
+	selectedFiles := make(map[int]bool)
+	var checkBoxes []*widget.Check
+
+	// 创建滚动容器来容纳复选框列表
+	content := container.NewVBox()
+
+	for i, fileName := range remoteFiles {
+		index := i // 捕获循环变量
+		check := widget.NewCheck(fileName, func(checked bool) {
+			selectedFiles[index] = checked
+		})
+		checkBoxes = append(checkBoxes, check)
+		content.Add(check)
+	}
+
+	scroll := container.NewScroll(content)
+	scroll.SetMinSize(fyne.NewSize(650, 300))
+
+	// 创建全选/全不选按钮
+	selectAllBtn := widget.NewButton("Select All", func() {
+		for i, check := range checkBoxes {
+			check.SetChecked(true)
+			selectedFiles[i] = true
+		}
+	})
+
+	deselectAllBtn := widget.NewButton("Deselect All", func() {
+		for i, check := range checkBoxes {
+			check.SetChecked(false)
+			selectedFiles[i] = false
+		}
+	})
+
+	// 创建下载按钮
+	downloadBtn := widget.NewButton("Download Selected", func() {
+		// 收集选中的文件
+		var filesToDownload []string
+		for i, selected := range selectedFiles {
+			if selected && i < len(remoteFiles) {
+				filesToDownload = append(filesToDownload, remoteFiles[i])
+			}
+		}
+
+		if len(filesToDownload) == 0 {
+			dialog.ShowInformation("Info", "Please select at least one file", remoteWindow)
+			return
+		}
+
+		remoteWindow.Close()
+		ui.runOperation("Download Multiple Files", func(ctx context.Context) error {
+			for _, fileName := range filesToDownload {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+
+				if err := ui.fileManager.DownloadSpecificFile(ctx, fileName); err != nil {
+					ui.logger.Error("Failed to download file", slog.String("file", fileName), slog.String("error", err.Error()))
+					// 继续下载其他文件，不中断整个过程
+				}
+			}
+			ui.refreshList()
+			return nil
+		})
+	})
+
+	cancelBtn := widget.NewButton("Cancel", func() {
+		remoteWindow.Close()
+	})
+
+	// 布局
+	topButtons := container.NewHBox(selectAllBtn, deselectAllBtn)
+	bottomButtons := container.NewHBox(downloadBtn, cancelBtn)
+
+	finalContent := container.NewBorder(
+		container.NewVBox(
+			widget.NewLabel("Select remote files to download:"),
+			topButtons,
+		),
+		bottomButtons,
+		nil,
+		nil,
+		scroll,
+	)
+
+	remoteWindow.SetContent(finalContent)
+	remoteWindow.Show()
 }
 
 // Run starts the application

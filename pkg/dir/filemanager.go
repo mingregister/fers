@@ -120,10 +120,24 @@ func (fm *FileManager) SyncDownload(ctx context.Context) error {
 		return fmt.Errorf("failed to list remote files: %w", err)
 	}
 
-	localFiles := List(fm.workingDir)
-	localSet := make(map[string]bool, len(localFiles))
-	for _, file := range localFiles {
-		localSet[file] = true
+	// 构建本地文件的完整路径集合
+	localFileSet := make(map[string]bool)
+	err = filepath.Walk(fm.workingDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			relativePath, err := filepath.Rel(fm.workingDir, path)
+			if err != nil {
+				return err
+			}
+			// 使用斜杠路径以匹配远程路径格式
+			localFileSet[filepath.ToSlash(relativePath)] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to scan local files: %w", err)
 	}
 
 	for _, remotePath := range remoteFiles {
@@ -133,10 +147,8 @@ func (fm *FileManager) SyncDownload(ctx context.Context) error {
 		default:
 		}
 
-		parts := strings.Split(remotePath, "/")
-		topLevel := parts[0]
-
-		if !localSet[topLevel] {
+		// 检查远程文件是否在本地存在
+		if !localFileSet[remotePath] {
 			localPath := filepath.Join(fm.workingDir, remotePath)
 			if err := fm.DownloadAndDecryptFile(remotePath, localPath); err != nil {
 				fm.logger.Error("Failed to download file", slog.String("path", remotePath), slog.String("error", err.Error()))
@@ -190,4 +202,42 @@ func (fm *FileManager) SyncUpload(ctx context.Context) error {
 
 		return nil
 	})
+}
+
+// ListRemoteFiles returns a list of all remote files
+func (fm *FileManager) ListRemoteFiles() ([]string, error) {
+	return fm.storage.List("")
+}
+
+// DownloadSpecificFile downloads a specific file from remote storage
+func (fm *FileManager) DownloadSpecificFile(ctx context.Context, remotePath string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	localPath := filepath.Join(fm.workingDir, remotePath)
+	return fm.DownloadAndDecryptFile(remotePath, localPath)
+}
+
+// DeleteLocalFile deletes a local file
+func (fm *FileManager) DeleteLocalFile(relativePath string) error {
+	localPath := filepath.Join(fm.workingDir, relativePath)
+
+	// 确保文件在工作目录范围内
+	cleanLocalPath := filepath.Clean(localPath)
+	cleanWorkingDir := filepath.Clean(fm.workingDir)
+
+	relPath, err := filepath.Rel(cleanWorkingDir, cleanLocalPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		return fmt.Errorf("file is outside working directory")
+	}
+
+	if err := os.Remove(localPath); err != nil {
+		return fmt.Errorf("failed to delete file %s: %w", relativePath, err)
+	}
+
+	fm.logger.Info("File deleted successfully", slog.String("path", relativePath))
+	return nil
 }
