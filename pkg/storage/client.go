@@ -7,4 +7,7 @@ type Client interface {
 	Upload(key string, data []byte) error
 	// Download object by key
 	Download(key string) ([]byte, error)
+	// Delete removes the value for a key.
+	// Returns nil if successful or key doesn't exist.
+	Delete(key string) error
 }

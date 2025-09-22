@@ -154,6 +154,10 @@ func (o *ossClient) getFullPath(key string) string {
 	return strings.Replace(fullPath, "//", "/", -1)
 }
 
+func (o *ossClient) Delete(key string) error {
+	return nil
+}
+
 // IsOSSKey checks if the given key looks like an OSS object key
 func IsOSSKey(key string) bool {
 	return strings.HasPrefix(key, "oss://") ||

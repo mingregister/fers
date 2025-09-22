@@ -66,3 +66,7 @@ func (o *ossMock) Download(key string) ([]byte, error) {
 	p := o.keyPath(key)
 	return os.ReadFile(p)
 }
+
+func (o *ossMock) Delete(key string) error {
+	return nil
+}
