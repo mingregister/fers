@@ -9,15 +9,24 @@ import (
 )
 
 type Config struct {
-	CryptoKey      string    `mapstructure:"crypto_key"`
-	Log            string    `mapstructure:"log"`
-	TargetDir      string    `mapstructure:"target_dir"`
-	StorageMockDir string    `mapstructure:"storage_mock_dir"`
-	OSS            OSSConfig `mapstructure:"oss"`
+	CryptoKey string  `mapstructure:"crypto_key"`
+	Log       string  `mapstructure:"log"`
+	TargetDir string  `mapstructure:"target_dir"`
+	Storage   Storage `mapstructure:"storage"`
 }
 
-// OSSConfig contains the configuration for OSS client
-type OSSConfig struct {
+type Storage struct {
+	RemoteType string    `mapstructure:"remote_type"`
+	Localhost  Localhost `mapstructure:"localhost"`
+	Oss        OSS       `mapstructure:"oss"`
+}
+
+type Localhost struct {
+	Workdir string `mapstructure:"work_dir"`
+}
+
+// OSS contains the configuration for OSS client
+type OSS struct {
 	Enabled         bool   `mapstructure:"enabled"`
 	Endpoint        string `mapstructure:"endpoint"`
 	AccessKeyID     string `mapstructure:"access_key_id"`

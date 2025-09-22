@@ -3,6 +3,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"fyne.io/fyne/v2"
@@ -25,6 +26,26 @@ func showFatalError(msg string) {
 	w.ShowAndRun() // 阻塞，用户关掉窗口后进程退出
 }
 
+func NewStorageClient(cfg *config.Storage) (storage.Client, error) {
+	switch cfg.RemoteType {
+	case "localhost":
+		storageClient := storage.NewOSSMock(cfg.Localhost.Workdir)
+		return storageClient, nil
+	case "oss":
+		storageClient, err := storage.NewOSSClient(
+			cfg.Oss.Endpoint,
+			cfg.Oss.AccessKeyID,
+			cfg.Oss.AccessKeySecret,
+			cfg.Oss.BucketName,
+			cfg.Oss.Region,
+			cfg.Oss.WorkDir,
+		)
+		return storageClient, err
+	default:
+		return nil, fmt.Errorf("unsupport storage %s", cfg.RemoteType)
+	}
+}
+
 func main() {
 	// Initialize configuration
 	cfg, err := config.NewConfig()
@@ -45,15 +66,11 @@ func main() {
 	logger := slog.New(uiLogHandler)
 	slog.SetDefault(logger)
 
-	storageClient := storage.NewOSSMock(cfg.StorageMockDir)
-	// storageClient, _ := storage.NewOSSClient(
-	// 	cfg.OSS.Endpoint,
-	// 	cfg.OSS.AccessKeyID,
-	// 	cfg.OSS.AccessKeySecret,
-	// 	cfg.OSS.BucketName,
-	// 	cfg.OSS.Region,
-	// 	cfg.OSS.WorkDir,
-	// )
+	storageClient, err := NewStorageClient(&cfg.Storage)
+	if err != nil {
+		showFatalError(err.Error())
+		return
+	}
 
 	cipherClient := crypto.NewAESGCM(cfg.CryptoKey)
 
