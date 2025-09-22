@@ -65,7 +65,7 @@ func LoadFromFile(configName string) (*Config, error) {
 
 	// 3. 用户主目录
 	if homeDir, err := os.UserHomeDir(); err == nil {
-		v.AddConfigPath(homeDir)
+		v.AddConfigPath(fmt.Sprintf("%s/.fers", homeDir))
 	}
 
 	// 读取配置文件
