@@ -56,7 +56,7 @@ func main() {
 	logger := initLogger(logFile)
 	slog.SetDefault(logger)
 
-	// storageClient := storage.NewOSSMock(cfg.OSS.WorkDir)
+	// storageClient := storage.NewOSSMock(cfg.StorageMockDir)
 	storageClient, _ := storage.NewOSSClient(
 		cfg.OSS.Endpoint,
 		cfg.OSS.AccessKeyID,

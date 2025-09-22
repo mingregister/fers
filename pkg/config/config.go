@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	CryptoKey string    `mapstructure:"crypto_key"`
-	Log       string    `mapstructure:"log"`
-	TargetDir string    `mapstructure:"target_dir"`
-	OSS       OSSConfig `mapstructure:"oss"`
+	CryptoKey      string    `mapstructure:"crypto_key"`
+	Log            string    `mapstructure:"log"`
+	TargetDir      string    `mapstructure:"target_dir"`
+	StorageMockDir string    `mapstructure:"storage_mock_dir"`
+	OSS            OSSConfig `mapstructure:"oss"`
 }
 
 // OSSConfig contains the configuration for OSS client
