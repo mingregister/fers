@@ -28,12 +28,12 @@ type FileManager struct {
 }
 
 // NewFileManager creates a new FileManager instance
-func NewFileManager(cfg *config.Config, storage storage.Client, logger *slog.Logger) *FileManager {
+func NewFileManager(cfg *config.Config, storage storage.Client, logger *slog.Logger, cipher crypto.Cipher) *FileManager {
 	return &FileManager{
 		config:     cfg,
 		storage:    storage,
 		workingDir: cfg.TargetDir,
-		cipher:     crypto.NewAESGCM(cfg.CryptoKey),
+		cipher:     cipher,
 		logger:     logger,
 	}
 }

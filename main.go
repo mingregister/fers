@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/mingregister/fers/pkg/appui"
 	"github.com/mingregister/fers/pkg/config"
+	"github.com/mingregister/fers/pkg/crypto"
 	"github.com/mingregister/fers/pkg/dir"
 	"github.com/mingregister/fers/pkg/storage"
 )
@@ -58,8 +59,10 @@ func main() {
 	// Initialize storage client
 	storageClient := storage.NewOSSMock(cfg.OssDir)
 
+	cipherClient := crypto.NewAESGCM(cfg.CryptoKey)
+
 	// Initialize file manager
-	fileManager := dir.NewFileManager(cfg, storageClient, logger)
+	fileManager := dir.NewFileManager(cfg, storageClient, logger, cipherClient)
 
 	// Initialize and run UI
 	ui := appui.NewAppUI(fileManager, logger)
