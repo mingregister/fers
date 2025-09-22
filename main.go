@@ -3,10 +3,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"log/slog"
-	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -18,15 +15,6 @@ import (
 	"github.com/mingregister/fers/pkg/dir"
 	"github.com/mingregister/fers/pkg/storage"
 )
-
-// initLogger initializes the logger
-func initLogger(w io.Writer) *slog.Logger {
-	handler := slog.NewTextHandler(w, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-	})
-	return slog.New(handler)
-}
 
 func showFatalError(msg string) {
 	a := app.New()
@@ -45,33 +33,39 @@ func main() {
 		return
 	}
 
-	// Initialize logger
-	logFile, err := os.OpenFile(cfg.Log, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
-	if err != nil {
-		fmt.Printf("Failed to open log file: %v\n", err)
-		return
-	}
-	defer logFile.Close()
+	// Create log widget first.
+	// NOTE: logWidget需要先绑定到window才能使用.
+	logWidget := widget.NewTextGrid()
 
-	logger := initLogger(logFile)
+	// Set up UI logger
+	uiLogHandler := appui.NewUILogHandler(logWidget, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+	})
+	logger := slog.New(uiLogHandler)
 	slog.SetDefault(logger)
 
-	// storageClient := storage.NewOSSMock(cfg.StorageMockDir)
-	storageClient, _ := storage.NewOSSClient(
-		cfg.OSS.Endpoint,
-		cfg.OSS.AccessKeyID,
-		cfg.OSS.AccessKeySecret,
-		cfg.OSS.BucketName,
-		cfg.OSS.Region,
-		cfg.OSS.WorkDir,
-	)
+	storageClient := storage.NewOSSMock(cfg.StorageMockDir)
+	// storageClient, _ := storage.NewOSSClient(
+	// 	cfg.OSS.Endpoint,
+	// 	cfg.OSS.AccessKeyID,
+	// 	cfg.OSS.AccessKeySecret,
+	// 	cfg.OSS.BucketName,
+	// 	cfg.OSS.Region,
+	// 	cfg.OSS.WorkDir,
+	// )
 
 	cipherClient := crypto.NewAESGCM(cfg.CryptoKey)
 
-	// Initialize file manager
+	// Initialize file manager with UI logger
 	fileManager := dir.NewFileManager(cfg, storageClient, logger, cipherClient)
 
-	// Initialize and run UI
-	ui := appui.NewAppUI(fileManager, logger)
+	// Initialize UI with log widget
+	ui := appui.NewAppUIWithLogWidget(fileManager, logger, logWidget)
+
+	// Log startup message
+	logger.Info("Application started successfully", slog.String("version", "1.0"))
+
+	// Run UI
 	ui.Run()
 }

@@ -29,6 +29,7 @@ type AppUI struct {
 	items         []string
 	selectedIndex int
 	selectedName  string
+	logWidget     *widget.TextGrid
 
 	// Directory navigation
 	currentDir string // 当前显示的目录
@@ -59,6 +60,27 @@ func NewAppUI(fileManager *dir.FileManager, logger *slog.Logger) *AppUI {
 	return ui
 }
 
+// NewAppUIWithLogWidget creates a new AppUI instance with a pre-created log widget
+func NewAppUIWithLogWidget(fileManager *dir.FileManager, logger *slog.Logger, logWidget *widget.TextGrid) *AppUI {
+	app := app.New()
+	window := app.NewWindow("File Encrypt & Remote Storage")
+	window.Resize(fyne.NewSize(1000, 600))
+	window.CenterOnScreen()
+
+	ui := &AppUI{
+		app:           app,
+		window:        window,
+		fileManager:   fileManager,
+		logger:        logger,
+		selectedIndex: -1,
+		currentDir:    fileManager.GetWorkingDir(), // 初始化为workingDir
+		logWidget:     logWidget,
+	}
+
+	ui.setupUI()
+	return ui
+}
+
 // setupUI initializes the user interface
 func (ui *AppUI) setupUI() {
 	// Directory labels
@@ -80,6 +102,14 @@ func (ui *AppUI) setupUI() {
 		ui.selectedIndex = i
 		ui.selectedName = ui.items[i]
 	}
+
+	// Log widget - create only if not already provided
+	if ui.logWidget == nil {
+		ui.logWidget = widget.NewTextGrid()
+		ui.logWidget.SetText("Application Logs\n\nLogs will appear here...\n")
+	}
+	logScroll := container.NewScroll(ui.logWidget)
+	logScroll.SetMinSize(fyne.NewSize(400, 200))
 
 	// Navigation buttons
 	navButtons := container.NewHBox(
@@ -103,7 +133,12 @@ func (ui *AppUI) setupUI() {
 	// Layout
 	dirLabels := container.NewVBox(workingDirLabel, ui.dirLabel)
 	ListPane := container.NewBorder(dirLabels, nil, nil, nil, ui.list)
-	content := container.NewBorder(nil, nil, buttons, nil, ListPane)
+
+	// Create main content with file list on left and log on right
+	mainContent := container.NewHSplit(ListPane, logScroll)
+	mainContent.SetOffset(0.6) // 60% for file list, 40% for logs
+
+	content := container.NewBorder(nil, nil, buttons, nil, mainContent)
 	ui.window.SetContent(content)
 }
 
@@ -461,6 +496,11 @@ func (ui *AppUI) showRemoteFileDialog() {
 
 	remoteWindow.SetContent(finalContent)
 	remoteWindow.Show()
+}
+
+// GetLogWidget returns the log widget for setting up log handler
+func (ui *AppUI) GetLogWidget() *widget.TextGrid {
+	return ui.logWidget
 }
 
 // Run starts the application
