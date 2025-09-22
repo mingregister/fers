@@ -9,10 +9,21 @@ import (
 )
 
 type Config struct {
-	CryptoKey string `mapstructure:"crypto_key"`
-	Log       string `mapstructure:"log"`
-	TargetDir string `mapstructure:"target_dir"`
-	OssDir    string `mapstructure:"oss_dir"`
+	CryptoKey string    `mapstructure:"crypto_key"`
+	Log       string    `mapstructure:"log"`
+	TargetDir string    `mapstructure:"target_dir"`
+	OSS       OSSConfig `mapstructure:"oss"`
+}
+
+// OSSConfig contains the configuration for OSS client
+type OSSConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	AccessKeySecret string `mapstructure:"access_key_secret"`
+	BucketName      string `mapstructure:"bucket_name"`
+	Region          string `mapstructure:"region"`
+	WorkDir         string `mapstructure:"workDir"`
 }
 
 func NewConfig() (*Config, error) {

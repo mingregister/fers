@@ -56,8 +56,15 @@ func main() {
 	logger := initLogger(logFile)
 	slog.SetDefault(logger)
 
-	// Initialize storage client
-	storageClient := storage.NewOSSMock(cfg.OssDir)
+	// storageClient := storage.NewOSSMock(cfg.OSS.WorkDir)
+	storageClient, _ := storage.NewOSSClient(
+		cfg.OSS.Endpoint,
+		cfg.OSS.AccessKeyID,
+		cfg.OSS.AccessKeySecret,
+		cfg.OSS.BucketName,
+		cfg.OSS.Region,
+		cfg.OSS.WorkDir,
+	)
 
 	cipherClient := crypto.NewAESGCM(cfg.CryptoKey)
 
