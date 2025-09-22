@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Go App (CGO Enabled)",
+            "type": "shell",
+            // "command": "go build -o app.exe main.go",
+            "command": "fyne build -o fers.exe",
+            "options": {
+                "envFile": "${workspaceFolder}/.env"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+.env
+.envrc
+app.exe
+*.exe
+tmp
+
+*.log
+
+.vscode
+!.vscode/launch.json
+!.vscode/tasks.json
+config.yaml

@@ -1,0 +1,8 @@
+[Details]
+  Name = "fers"
+  ID = "fers"
+  Version = "0.1.0"
+  Build = 5
+
+[Migrations]
+  fyneDo = true
