@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![FERS Logo](Icon.jpg)
+<img src="Icon.jpg" alt="FERS Logo" width="80" height="80">
 
 **一个安全、易用的文件加密与云存储管理工具**
 
@@ -197,7 +197,6 @@ storage:
 
 1. **密钥管理**
    - 使用包含大小写字母、数字和特殊字符的强密码
-   - 定期更换加密密钥
    - 妥善备份密钥，丢失后无法恢复文件
 
 2. **访问控制**
