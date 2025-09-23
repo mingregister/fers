@@ -13,6 +13,7 @@ type Config struct {
 	Log       string  `mapstructure:"log"`
 	TargetDir string  `mapstructure:"target_dir"`
 	Storage   Storage `mapstructure:"storage"`
+	LogLevel  int     `mapstructure:"log_level"`
 }
 
 type Storage struct {
@@ -48,6 +49,8 @@ func NewConfig() (*Config, error) {
 // LoadFromFile 使用Viper从配置文件加载配置
 func LoadFromFile(configName string) (*Config, error) {
 	v := viper.New()
+
+	v.SetDefault("log_level", 0) // 默认日志级别为INFO
 
 	// 设置配置文件名（不包含扩展名）
 	v.SetConfigName(configName)
