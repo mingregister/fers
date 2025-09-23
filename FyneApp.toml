@@ -1,8 +1,8 @@
 [Details]
-  Name = "fers"
-  ID = "fers"
-  Version = "0.1.0"
-  Build = 6
+Name = "fers"
+ID = "fers"
+Version = "0.1.0"
+Build = 6
 
 [Migrations]
-  fyneDo = true
+fyneDo = true
