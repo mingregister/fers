@@ -11,7 +11,7 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 )
 
-var _ Client = &ossClient{}
+var _ Client = (*ossClient)(nil)
 
 type ossClient struct {
 	client     *oss.Client

@@ -25,6 +25,8 @@ type Cipher interface {
 	Decrypter
 }
 
+var _ Cipher = (*aesGCM)(nil)
+
 type aesGCM struct {
 	key []byte
 }
@@ -33,8 +35,6 @@ func NewAESGCM(password string) Cipher {
 	h := sha256.Sum256([]byte(password))
 	return &aesGCM{key: h[:]}
 }
-
-var _ Cipher = &aesGCM{}
 
 func (ag *aesGCM) Encrypt(plain []byte) ([]byte, error) {
 	block, err := aes.NewCipher(ag.key)

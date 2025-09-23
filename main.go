@@ -60,7 +60,7 @@ func main() {
 
 	// Set up UI logger
 	uiLogHandler := appui.NewUILogHandler(logWidget, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
+		Level:     slog.Level(cfg.LogLevel),
 		AddSource: true,
 	})
 	logger := slog.New(uiLogHandler)

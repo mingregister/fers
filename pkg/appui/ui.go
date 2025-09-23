@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -17,6 +19,19 @@ import (
 	"github.com/mingregister/fers/pkg/dir"
 )
 
+// UI Constants
+const (
+	DefaultWindowWidth    = 1000
+	DefaultWindowHeight   = 600
+	ListPaneRatio         = 0.8 // 80% for file list, 20% for logs
+	LogPaneMinWidth       = 400
+	LogPaneMinHeight      = 200
+	RemoteWindowWidth     = 700
+	RemoteWindowHeight    = 500
+	RemoteScrollMinWidth  = 650
+	RemoteScrollMinHeight = 300
+)
+
 // AppUI manages the user interface
 type AppUI struct {
 	app         fyne.App
@@ -25,11 +40,11 @@ type AppUI struct {
 	logger      *slog.Logger
 
 	// UI components
-	list          *widget.List
-	items         []string
-	selectedIndex int
-	selectedName  string
-	logWidget     *widget.TextGrid
+	rightClickableList *RightClickableList
+	items              []string
+	selectedIndex      int
+	selectedName       string
+	logWidget          *widget.TextGrid
 
 	// Directory navigation
 	currentDir string // 当前显示的目录
@@ -40,11 +55,16 @@ type AppUI struct {
 	cancelFunc     context.CancelFunc
 }
 
+// validateSelection checks if a valid item is selected
+func (ui *AppUI) validateSelection() bool {
+	return ui.selectedIndex >= 0 && ui.selectedIndex < len(ui.items) && ui.selectedName != ""
+}
+
 // NewAppUI creates a new AppUI instance
 func NewAppUI(fileManager *dir.FileManager, logger *slog.Logger) *AppUI {
 	app := app.New()
 	window := app.NewWindow("File Encrypt & Remote Storage")
-	window.Resize(fyne.NewSize(1000, 600))
+	window.Resize(fyne.NewSize(DefaultWindowWidth, DefaultWindowHeight))
 	window.CenterOnScreen()
 
 	ui := &AppUI{
@@ -64,7 +84,7 @@ func NewAppUI(fileManager *dir.FileManager, logger *slog.Logger) *AppUI {
 func NewAppUIWithLogWidget(fileManager *dir.FileManager, logger *slog.Logger, logWidget *widget.TextGrid) *AppUI {
 	app := app.New()
 	window := app.NewWindow("File Encrypt & Remote Storage")
-	window.Resize(fyne.NewSize(1000, 600))
+	window.Resize(fyne.NewSize(DefaultWindowWidth, DefaultWindowHeight))
 	window.CenterOnScreen()
 
 	ui := &AppUI{
@@ -87,21 +107,22 @@ func (ui *AppUI) setupUI() {
 	workingDirLabel := widget.NewLabel("Working dir: " + ui.fileManager.GetWorkingDir())
 	ui.dirLabel = widget.NewLabel("Current dir: " + ui.currentDir)
 
-	// File list
+	// File list with right-click support
 	ui.refreshItems()
-	ui.list = widget.NewList(
-		func() int { return len(ui.items) },
-		func() fyne.CanvasObject {
-			return widget.NewLabel("template")
-		},
-		func(i int, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(ui.items[i])
-		},
-	)
-	ui.list.OnSelected = func(i int) {
+	ui.rightClickableList = NewRightClickableList()
+	ui.rightClickableList.OnItemTapped = func(i int) {
 		ui.selectedIndex = i
 		ui.selectedName = ui.items[i]
+		ui.logger.Debug("left click", slog.String("item", ui.selectedName))
 	}
+	ui.rightClickableList.OnItemRightClick = func(i int, pos fyne.Position) {
+		ui.selectedIndex = i
+		ui.selectedName = ui.items[i]
+		ui.logger.Debug("right click", slog.String("item", ui.selectedName))
+		ui.showContextMenu(pos)
+	}
+	ui.rightClickableList.SetItems(ui.items)
+	ui.rightClickableList.Build()
 
 	// Log widget - create only if not already provided
 	if ui.logWidget == nil {
@@ -109,7 +130,7 @@ func (ui *AppUI) setupUI() {
 		ui.logWidget.SetText("Application Logs\n\nLogs will appear here...\n")
 	}
 	logScroll := container.NewScroll(ui.logWidget)
-	logScroll.SetMinSize(fyne.NewSize(400, 200))
+	logScroll.SetMinSize(fyne.NewSize(LogPaneMinWidth, LogPaneMinHeight))
 
 	// Navigation buttons
 	navButtons := container.NewHBox(
@@ -130,13 +151,13 @@ func (ui *AppUI) setupUI() {
 		ui.createCancelButton(),
 	)
 
-	// Layout
+	// Layout - directly use the custom widget
 	dirLabels := container.NewVBox(workingDirLabel, ui.dirLabel)
-	ListPane := container.NewBorder(dirLabels, nil, nil, nil, ui.list)
+	ListPane := container.NewBorder(dirLabels, nil, nil, nil, ui.rightClickableList)
 
 	// Create main content with file list on left and log on right
 	mainContent := container.NewVSplit(ListPane, logScroll)
-	mainContent.SetOffset(0.8) // 80% for file list, 40% for logs
+	mainContent.SetOffset(ListPaneRatio)
 
 	content := container.NewBorder(nil, nil, buttons, nil, mainContent)
 	ui.window.SetContent(content)
@@ -150,12 +171,23 @@ func (ui *AppUI) refreshItems() {
 // refreshList refreshes the UI list
 func (ui *AppUI) refreshList() {
 	ui.refreshItems()
-	ui.list.Length = func() int { return len(ui.items) }
-	ui.list.Refresh()
-	// 清除选择状态
-	ui.list.UnselectAll()
+	if ui.rightClickableList != nil {
+		ui.rightClickableList.SetItems(ui.items)
+		ui.rightClickableList.Refresh()
+		// 清除选择状态
+		ui.rightClickableList.UnselectAll()
+	}
 	ui.selectedIndex = -1
 	ui.selectedName = ""
+}
+
+func (ui *AppUI) showContextMenu(pos fyne.Position) {
+	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
+		return
+	}
+	menu := fyne.NewMenu("", fyne.NewMenuItem("open in files", ui.openSelectedInFileManager))
+	popup := widget.NewPopUpMenu(menu, ui.window.Canvas())
+	popup.ShowAtPosition(pos)
 }
 
 // goUpDirectory navigates to the parent directory
@@ -179,7 +211,7 @@ func (ui *AppUI) goUpDirectory() {
 	}
 
 	ui.currentDir = parentDir
-	ui.dirLabel.SetText("Current dir: " + ui.currentDir)
+	ui.dirLabel.SetText(fmt.Sprintf("Current dir: %s", ui.currentDir))
 	ui.refreshList()
 }
 
@@ -231,7 +263,7 @@ func (ui *AppUI) enterDirectory(dirName string) {
 func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 	return widget.NewButton("Encrypt & Upload", func() {
 		// 检查是否有选中的项目
-		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+		if !ui.validateSelection() {
 			dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
 			return
 		}
@@ -285,7 +317,7 @@ func (ui *AppUI) createDownloadSpecificButton() *widget.Button {
 func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 	return widget.NewButton("Delete Local File", func() {
 		// 检查是否有选中的项目
-		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+		if !ui.validateSelection() {
 			dialog.ShowInformation("Info", "Please select a file first", ui.window)
 			return
 		}
@@ -391,7 +423,15 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 // showRemoteFileDialog shows a dialog to select and download remote files
 func (ui *AppUI) showRemoteFileDialog() {
 	// 获取远程文件列表
-	remoteFiles, err := ui.fileManager.ListRemoteFiles()
+	rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+	if err != nil {
+		ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
+		rel = ""
+	}
+	if rel == "." {
+		rel = ""
+	}
+	remoteFiles, err := ui.fileManager.ListRemoteFiles(rel)
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
 		return
@@ -404,7 +444,7 @@ func (ui *AppUI) showRemoteFileDialog() {
 
 	// 创建新窗口显示远程文件
 	remoteWindow := ui.app.NewWindow("Remote Files")
-	remoteWindow.Resize(fyne.NewSize(700, 500))
+	remoteWindow.Resize(fyne.NewSize(RemoteWindowWidth, RemoteWindowHeight))
 	remoteWindow.CenterOnScreen()
 
 	// 创建多选文件列表
@@ -424,7 +464,7 @@ func (ui *AppUI) showRemoteFileDialog() {
 	}
 
 	scroll := container.NewScroll(content)
-	scroll.SetMinSize(fyne.NewSize(650, 300))
+	scroll.SetMinSize(fyne.NewSize(RemoteScrollMinWidth, RemoteScrollMinHeight))
 
 	// 创建全选/全不选按钮
 	selectAllBtn := widget.NewButton("Select All", func() {
@@ -501,6 +541,62 @@ func (ui *AppUI) showRemoteFileDialog() {
 // GetLogWidget returns the log widget for setting up log handler
 func (ui *AppUI) GetLogWidget() *widget.TextGrid {
 	return ui.logWidget
+}
+
+// openSelectedInFileManager opens the file manager for the currently selected item
+func (ui *AppUI) openSelectedInFileManager() {
+	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
+		dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
+		return
+	}
+	fullPath := filepath.Join(ui.currentDir, ui.selectedName)
+	if err := ui.openInFileManager(fullPath); err != nil {
+		ui.logger.Error("Failed to open file manager", slog.String("error", err.Error()))
+		dialog.ShowError(fmt.Errorf("failed to open file manager: %w", err), ui.window)
+	}
+	ui.selectedIndex = -1
+	ui.selectedName = ""
+	ui.rightClickableList.UnselectAll()
+}
+
+// openInFileManager opens the system file manager at the specified path
+func (ui *AppUI) openInFileManager(path string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		// Use explorer with /select to highlight the file/folder
+		windowsPath := filepath.Clean(path)
+		cmd = exec.Command("explorer", "/select,"+windowsPath)
+	case "darwin":
+		// Use open with -R to reveal in Finder
+		cmd = exec.Command("open", "-R", path)
+	case "linux":
+		// Check if the path is a directory or file
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("failed to stat path %s: %w", path, err)
+		}
+
+		if info.IsDir() {
+			// Open the directory directly
+			cmd = exec.Command("xdg-open", path)
+		} else {
+			// Open the parent directory
+			parentDir := filepath.Dir(path)
+			cmd = exec.Command("xdg-open", parentDir)
+		}
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+
+	ui.logger.Info("Opening file manager", slog.String("path", path), slog.String("os", runtime.GOOS))
+
+	// Windows 用 Start()，其他系统用 Run()
+	if runtime.GOOS == "windows" {
+		return cmd.Start()
+	}
+	return cmd.Run()
 }
 
 // Run starts the application
