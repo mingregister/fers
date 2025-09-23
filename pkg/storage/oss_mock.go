@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-var _ Client = &ossMock{}
+var _ Client = (*ossMock)(nil)
 
 type ossMock struct {
 	base string
