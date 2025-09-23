@@ -32,136 +32,6 @@ const (
 	RemoteScrollMinHeight = 300
 )
 
-// ItemContainer wraps each list item to handle right-click events
-type ItemContainer struct {
-	widget.BaseWidget
-	label *widget.Label
-	rcl   *RightClickableList
-	index int
-}
-
-// CreateRenderer implements fyne.Widget interface for ItemContainer
-func (ic *ItemContainer) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(ic.label)
-}
-
-// selectItem updates the selection to the specified item
-func (ic *ItemContainer) selectItem() {
-	// Boundary check
-	if ic.index < 0 || ic.index >= len(ic.rcl.ui.items) {
-		ic.rcl.ui.logger.Debug("Invalid item index", slog.Int("index", ic.index), slog.Int("total_items", len(ic.rcl.ui.items)))
-		return
-	}
-
-	ic.rcl.ui.selectedIndex = ic.index
-	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
-	ic.rcl.list.Select(ic.index)
-}
-
-// Tapped handles left-click on individual items
-func (ic *ItemContainer) Tapped(pe *fyne.PointEvent) {
-	ic.rcl.ui.logger.Debug("ItemContainer Tapped called!", slog.Int("index", ic.index))
-
-	ic.selectItem()
-	ic.rcl.ui.logger.Debug("Selected item via left-click", slog.String("item", ic.rcl.ui.selectedName))
-}
-
-// TappedSecondary handles right-click on individual items
-func (ic *ItemContainer) TappedSecondary(pe *fyne.PointEvent) {
-	ic.rcl.ui.logger.Debug("ItemContainer TappedSecondary called!", slog.Int("index", ic.index))
-
-	ic.selectItem()
-	ic.rcl.ui.logger.Debug("Selected item via right-click", slog.String("item", ic.rcl.ui.selectedName))
-
-	// Show context menu
-	ic.rcl.showContextMenu(pe.AbsolutePosition)
-}
-
-// RightClickableList is a custom widget that wraps widget.List with right-click support
-type RightClickableList struct {
-	widget.BaseWidget
-	list *widget.List
-	ui   *AppUI
-}
-
-// Compile-time interface checks
-var _ fyne.Widget = (*RightClickableList)(nil)
-var _ fyne.Widget = (*ItemContainer)(nil)
-var _ fyne.Tappable = (*ItemContainer)(nil)
-var _ fyne.SecondaryTappable = (*ItemContainer)(nil)
-
-// NewRightClickableList creates a new RightClickableList with right-click support
-func NewRightClickableList(ui *AppUI) *RightClickableList {
-	rcl := &RightClickableList{ui: ui}
-
-	// Create internal list
-	rcl.list = widget.NewList(
-		func() int { return len(ui.items) },
-		func() fyne.CanvasObject {
-			// Create a custom widget that can handle right-click for each item
-			label := widget.NewLabel("template")
-			container := &ItemContainer{
-				label: label,
-				rcl:   rcl,
-			}
-			// Extend BaseWidget - crucial for Fyne to recognize this as a widget
-			container.ExtendBaseWidget(container)
-			return container
-		},
-		func(i int, o fyne.CanvasObject) {
-			itemContainer := o.(*ItemContainer)
-			itemContainer.label.SetText(ui.items[i])
-			itemContainer.index = i
-		},
-	)
-
-	// Set up selection handler
-	rcl.list.OnSelected = func(i int) {
-		ui.selectedIndex = i
-		ui.selectedName = ui.items[i]
-	}
-
-	// Extend BaseWidget - this is crucial for Fyne to recognize this as a widget
-	rcl.ExtendBaseWidget(rcl)
-
-	// Debug: Log that we created the widget
-	ui.logger.Info("Created RightClickableList widget")
-
-	return rcl
-}
-
-// CreateRenderer implements fyne.Widget interface - this is called by Fyne framework
-func (rcl *RightClickableList) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(rcl.list)
-}
-
-// showContextMenu displays the right-click context menu
-func (rcl *RightClickableList) showContextMenu(pos fyne.Position) {
-	if rcl.ui.selectedIndex < 0 || rcl.ui.selectedIndex >= len(rcl.ui.items) {
-		return
-	}
-
-	menu := fyne.NewMenu("", fyne.NewMenuItem("open in files", rcl.ui.openSelectedInFileManager))
-	popup := widget.NewPopUpMenu(menu, rcl.ui.window.Canvas())
-	popup.ShowAtPosition(pos)
-	popup.Show()
-}
-
-// GetList returns the underlying list widget for direct access if needed
-func (rcl *RightClickableList) GetList() *widget.List {
-	return rcl.list
-}
-
-// Refresh refreshes the list display
-func (rcl *RightClickableList) Refresh() {
-	rcl.list.Refresh()
-}
-
-// UnselectAll clears all selections
-func (rcl *RightClickableList) UnselectAll() {
-	rcl.list.UnselectAll()
-}
-
 // AppUI manages the user interface
 type AppUI struct {
 	app         fyne.App
@@ -239,7 +109,20 @@ func (ui *AppUI) setupUI() {
 
 	// File list with right-click support
 	ui.refreshItems()
-	ui.rightClickableList = NewRightClickableList(ui)
+	ui.rightClickableList = NewRightClickableList()
+	ui.rightClickableList.OnItemTapped = func(i int) {
+		ui.selectedIndex = i
+		ui.selectedName = ui.items[i]
+		ui.logger.Debug("left click", slog.String("item", ui.selectedName))
+	}
+	ui.rightClickableList.OnItemRightClick = func(i int, pos fyne.Position) {
+		ui.selectedIndex = i
+		ui.selectedName = ui.items[i]
+		ui.logger.Debug("right click", slog.String("item", ui.selectedName))
+		ui.showContextMenu(pos)
+	}
+	ui.rightClickableList.SetItems(ui.items)
+	ui.rightClickableList.Build()
 
 	// Log widget - create only if not already provided
 	if ui.logWidget == nil {
@@ -289,12 +172,22 @@ func (ui *AppUI) refreshItems() {
 func (ui *AppUI) refreshList() {
 	ui.refreshItems()
 	if ui.rightClickableList != nil {
+		ui.rightClickableList.SetItems(ui.items)
 		ui.rightClickableList.Refresh()
 		// 清除选择状态
 		ui.rightClickableList.UnselectAll()
 	}
 	ui.selectedIndex = -1
 	ui.selectedName = ""
+}
+
+func (ui *AppUI) showContextMenu(pos fyne.Position) {
+	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
+		return
+	}
+	menu := fyne.NewMenu("", fyne.NewMenuItem("open in files", ui.openSelectedInFileManager))
+	popup := widget.NewPopUpMenu(menu, ui.window.Canvas())
+	popup.ShowAtPosition(pos)
 }
 
 // goUpDirectory navigates to the parent directory
@@ -530,6 +423,11 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 // showRemoteFileDialog shows a dialog to select and download remote files
 func (ui *AppUI) showRemoteFileDialog() {
 	// 获取远程文件列表
+	// rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+	// if err != nil {
+	// 	ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
+	// 	rel = ""
+	// }
 	remoteFiles, err := ui.fileManager.ListRemoteFiles()
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
@@ -644,27 +542,18 @@ func (ui *AppUI) GetLogWidget() *widget.TextGrid {
 
 // openSelectedInFileManager opens the file manager for the currently selected item
 func (ui *AppUI) openSelectedInFileManager() {
-	if !ui.validateSelection() {
+	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
 		dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
 		return
 	}
-
-	// Get the full path of the selected item
 	fullPath := filepath.Join(ui.currentDir, ui.selectedName)
-
-	// Open the file manager
 	if err := ui.openInFileManager(fullPath); err != nil {
 		ui.logger.Error("Failed to open file manager", slog.String("error", err.Error()))
 		dialog.ShowError(fmt.Errorf("failed to open file manager: %w", err), ui.window)
-	} else {
-		// Reset selection after successful operation
-		ui.selectedIndex = -1
-		ui.selectedName = ""
-		if ui.rightClickableList != nil {
-			ui.rightClickableList.UnselectAll()
-		}
-		ui.logger.Info("Selection cleared after opening file manager")
 	}
+	ui.selectedIndex = -1
+	ui.selectedName = ""
+	ui.rightClickableList.UnselectAll()
 }
 
 // openInFileManager opens the system file manager at the specified path
