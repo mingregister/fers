@@ -10,3 +10,5 @@ tmp
 !.vscode/launch.json
 !.vscode/tasks.json
 config.yaml
+
+__debug_bin*

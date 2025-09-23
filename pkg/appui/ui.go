@@ -688,7 +688,8 @@ func (ui *AppUI) openInFileManager(path string) error {
 	switch runtime.GOOS {
 	case "windows":
 		// Use explorer with /select to highlight the file/folder
-		cmd = exec.Command("explorer", "/select,", path)
+		windowsPath := filepath.Clean(path)
+		cmd = exec.Command("explorer", "/select,"+windowsPath)
 	case "darwin":
 		// Use open with -R to reveal in Finder
 		cmd = exec.Command("open", "-R", path)
@@ -713,6 +714,10 @@ func (ui *AppUI) openInFileManager(path string) error {
 
 	ui.logger.Info("Opening file manager", slog.String("path", path), slog.String("os", runtime.GOOS))
 
+	// Windows 用 Start()，其他系统用 Run()
+	if runtime.GOOS == "windows" {
+		return cmd.Start()
+	}
 	return cmd.Run()
 }
 
