@@ -32,15 +32,24 @@ func (ic *ItemContainer) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(ic.label)
 }
 
+// selectItem updates the selection to the specified item
+func (ic *ItemContainer) selectItem() {
+	// Boundary check
+	if ic.index < 0 || ic.index >= len(ic.rcl.ui.items) {
+		ic.rcl.ui.logger.Debug("Invalid item index", slog.Int("index", ic.index), slog.Int("total_items", len(ic.rcl.ui.items)))
+		return
+	}
+
+	ic.rcl.ui.selectedIndex = ic.index
+	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
+	ic.rcl.list.Select(ic.index)
+}
+
 // Tapped handles left-click on individual items
 func (ic *ItemContainer) Tapped(pe *fyne.PointEvent) {
 	ic.rcl.ui.logger.Debug("ItemContainer Tapped called!", slog.Int("index", ic.index))
 
-	// Update selection to the left-clicked item
-	ic.rcl.ui.selectedIndex = ic.index
-	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
-	ic.rcl.list.Select(ic.index)
-
+	ic.selectItem()
 	ic.rcl.ui.logger.Debug("Selected item via left-click", slog.String("item", ic.rcl.ui.selectedName))
 }
 
@@ -48,12 +57,8 @@ func (ic *ItemContainer) Tapped(pe *fyne.PointEvent) {
 func (ic *ItemContainer) TappedSecondary(pe *fyne.PointEvent) {
 	ic.rcl.ui.logger.Debug("ItemContainer TappedSecondary called!", slog.Int("index", ic.index))
 
-	// Update selection to the right-clicked item
-	ic.rcl.ui.selectedIndex = ic.index
-	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
-	ic.rcl.list.Select(ic.index)
-
-	ic.rcl.ui.logger.Debug("Selected item via ItemContainer", slog.String("item", ic.rcl.ui.selectedName))
+	ic.selectItem()
+	ic.rcl.ui.logger.Debug("Selected item via right-click", slog.String("item", ic.rcl.ui.selectedName))
 
 	// Show context menu
 	ic.rcl.showContextMenu(pe.AbsolutePosition)
@@ -68,7 +73,6 @@ type RightClickableList struct {
 
 // Compile-time interface checks
 var _ fyne.Widget = (*RightClickableList)(nil)
-var _ fyne.SecondaryTappable = (*RightClickableList)(nil)
 var _ fyne.Widget = (*ItemContainer)(nil)
 var _ fyne.Tappable = (*ItemContainer)(nil)
 var _ fyne.SecondaryTappable = (*ItemContainer)(nil)
@@ -118,64 +122,15 @@ func (rcl *RightClickableList) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(rcl.list)
 }
 
-// TappedSecondary implements fyne.SecondaryTappable interface for right-click handling
-func (rcl *RightClickableList) TappedSecondary(pe *fyne.PointEvent) {
-	// Debug: Log that TappedSecondary was called
-	rcl.ui.logger.Info("TappedSecondary called!", slog.Float64("x", float64(pe.Position.X)), slog.Float64("y", float64(pe.Position.Y)))
-
-	// Calculate which item was right-clicked
-	if len(rcl.ui.items) == 0 {
-		rcl.ui.logger.Info("No items in list")
-		return
-	}
-
-	listSize := rcl.list.Size()
-	if listSize.Height <= 0 {
-		rcl.ui.logger.Info("List height is 0")
-		return
-	}
-
-	itemHeight := listSize.Height / float32(len(rcl.ui.items))
-	if itemHeight <= 0 {
-		rcl.ui.logger.Info("Item height is 0")
-		return
-	}
-
-	clickedIndex := int(pe.Position.Y / itemHeight)
-	rcl.ui.logger.Info("Calculated clicked index", slog.Int("index", clickedIndex), slog.Int("total_items", len(rcl.ui.items)))
-
-	if clickedIndex >= 0 && clickedIndex < len(rcl.ui.items) {
-		// Update selection to the right-clicked item
-		rcl.ui.selectedIndex = clickedIndex
-		rcl.ui.selectedName = rcl.ui.items[clickedIndex]
-		rcl.list.Select(clickedIndex)
-
-		rcl.ui.logger.Info("Selected item", slog.String("item", rcl.ui.selectedName))
-
-		// Show context menu
-		rcl.showContextMenu(pe.AbsolutePosition)
-	}
-}
-
 // showContextMenu displays the right-click context menu
 func (rcl *RightClickableList) showContextMenu(pos fyne.Position) {
 	if rcl.ui.selectedIndex < 0 || rcl.ui.selectedIndex >= len(rcl.ui.items) {
 		return
 	}
 
-	// // Create context menu items
-	// openInManagerItem := widget.NewButton("Open in File Manager", func() {
-	// 	rcl.ui.openSelectedInFileManager()
-	// })
-
-	// Create popup menu
-	// menu := container.NewVBox(openInManagerItem)
-
 	menu := fyne.NewMenu("", fyne.NewMenuItem("open in files", rcl.ui.openSelectedInFileManager))
 	popup := widget.NewPopUpMenu(menu, rcl.ui.window.Canvas())
 	popup.ShowAtPosition(pos)
-
-	// Auto-hide popup when clicking elsewhere
 	popup.Show()
 }
 
@@ -345,7 +300,7 @@ func (ui *AppUI) goUpDirectory() {
 	}
 
 	ui.currentDir = parentDir
-	ui.dirLabel.SetText("Current dir: " + ui.currentDir)
+	ui.dirLabel.SetText(fmt.Sprintf("Current dir: %s", ui.currentDir))
 	ui.refreshList()
 }
 
