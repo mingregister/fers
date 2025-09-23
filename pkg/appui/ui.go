@@ -34,26 +34,26 @@ func (ic *ItemContainer) CreateRenderer() fyne.WidgetRenderer {
 
 // Tapped handles left-click on individual items
 func (ic *ItemContainer) Tapped(pe *fyne.PointEvent) {
-	ic.rcl.ui.logger.Info("ItemContainer Tapped called!", slog.Int("index", ic.index))
+	ic.rcl.ui.logger.Debug("ItemContainer Tapped called!", slog.Int("index", ic.index))
 
 	// Update selection to the left-clicked item
 	ic.rcl.ui.selectedIndex = ic.index
 	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
 	ic.rcl.list.Select(ic.index)
 
-	ic.rcl.ui.logger.Info("Selected item via left-click", slog.String("item", ic.rcl.ui.selectedName))
+	ic.rcl.ui.logger.Debug("Selected item via left-click", slog.String("item", ic.rcl.ui.selectedName))
 }
 
 // TappedSecondary handles right-click on individual items
 func (ic *ItemContainer) TappedSecondary(pe *fyne.PointEvent) {
-	ic.rcl.ui.logger.Info("ItemContainer TappedSecondary called!", slog.Int("index", ic.index))
+	ic.rcl.ui.logger.Debug("ItemContainer TappedSecondary called!", slog.Int("index", ic.index))
 
 	// Update selection to the right-clicked item
 	ic.rcl.ui.selectedIndex = ic.index
 	ic.rcl.ui.selectedName = ic.rcl.ui.items[ic.index]
 	ic.rcl.list.Select(ic.index)
 
-	ic.rcl.ui.logger.Info("Selected item via ItemContainer", slog.String("item", ic.rcl.ui.selectedName))
+	ic.rcl.ui.logger.Debug("Selected item via ItemContainer", slog.String("item", ic.rcl.ui.selectedName))
 
 	// Show context menu
 	ic.rcl.showContextMenu(pe.AbsolutePosition)
