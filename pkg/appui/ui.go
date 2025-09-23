@@ -423,12 +423,15 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 // showRemoteFileDialog shows a dialog to select and download remote files
 func (ui *AppUI) showRemoteFileDialog() {
 	// 获取远程文件列表
-	// rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
-	// if err != nil {
-	// 	ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
-	// 	rel = ""
-	// }
-	remoteFiles, err := ui.fileManager.ListRemoteFiles()
+	rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+	if err != nil {
+		ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
+		rel = ""
+	}
+	if rel == "." {
+		rel = ""
+	}
+	remoteFiles, err := ui.fileManager.ListRemoteFiles(rel)
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
 		return
