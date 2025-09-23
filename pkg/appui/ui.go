@@ -19,6 +19,19 @@ import (
 	"github.com/mingregister/fers/pkg/dir"
 )
 
+// UI Constants
+const (
+	DefaultWindowWidth    = 1000
+	DefaultWindowHeight   = 600
+	ListPaneRatio         = 0.8 // 80% for file list, 20% for logs
+	LogPaneMinWidth       = 400
+	LogPaneMinHeight      = 200
+	RemoteWindowWidth     = 700
+	RemoteWindowHeight    = 500
+	RemoteScrollMinWidth  = 650
+	RemoteScrollMinHeight = 300
+)
+
 // ItemContainer wraps each list item to handle right-click events
 type ItemContainer struct {
 	widget.BaseWidget
@@ -172,11 +185,16 @@ type AppUI struct {
 	cancelFunc     context.CancelFunc
 }
 
+// validateSelection checks if a valid item is selected
+func (ui *AppUI) validateSelection() bool {
+	return ui.selectedIndex >= 0 && ui.selectedIndex < len(ui.items) && ui.selectedName != ""
+}
+
 // NewAppUI creates a new AppUI instance
 func NewAppUI(fileManager *dir.FileManager, logger *slog.Logger) *AppUI {
 	app := app.New()
 	window := app.NewWindow("File Encrypt & Remote Storage")
-	window.Resize(fyne.NewSize(1000, 600))
+	window.Resize(fyne.NewSize(DefaultWindowWidth, DefaultWindowHeight))
 	window.CenterOnScreen()
 
 	ui := &AppUI{
@@ -196,7 +214,7 @@ func NewAppUI(fileManager *dir.FileManager, logger *slog.Logger) *AppUI {
 func NewAppUIWithLogWidget(fileManager *dir.FileManager, logger *slog.Logger, logWidget *widget.TextGrid) *AppUI {
 	app := app.New()
 	window := app.NewWindow("File Encrypt & Remote Storage")
-	window.Resize(fyne.NewSize(1000, 600))
+	window.Resize(fyne.NewSize(DefaultWindowWidth, DefaultWindowHeight))
 	window.CenterOnScreen()
 
 	ui := &AppUI{
@@ -229,7 +247,7 @@ func (ui *AppUI) setupUI() {
 		ui.logWidget.SetText("Application Logs\n\nLogs will appear here...\n")
 	}
 	logScroll := container.NewScroll(ui.logWidget)
-	logScroll.SetMinSize(fyne.NewSize(400, 200))
+	logScroll.SetMinSize(fyne.NewSize(LogPaneMinWidth, LogPaneMinHeight))
 
 	// Navigation buttons
 	navButtons := container.NewHBox(
@@ -352,7 +370,7 @@ func (ui *AppUI) enterDirectory(dirName string) {
 func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 	return widget.NewButton("Encrypt & Upload", func() {
 		// 检查是否有选中的项目
-		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+		if !ui.validateSelection() {
 			dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
 			return
 		}
@@ -406,7 +424,7 @@ func (ui *AppUI) createDownloadSpecificButton() *widget.Button {
 func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 	return widget.NewButton("Delete Local File", func() {
 		// 检查是否有选中的项目
-		if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+		if !ui.validateSelection() {
 			dialog.ShowInformation("Info", "Please select a file first", ui.window)
 			return
 		}
@@ -525,7 +543,7 @@ func (ui *AppUI) showRemoteFileDialog() {
 
 	// 创建新窗口显示远程文件
 	remoteWindow := ui.app.NewWindow("Remote Files")
-	remoteWindow.Resize(fyne.NewSize(700, 500))
+	remoteWindow.Resize(fyne.NewSize(RemoteWindowWidth, RemoteWindowHeight))
 	remoteWindow.CenterOnScreen()
 
 	// 创建多选文件列表
@@ -545,7 +563,7 @@ func (ui *AppUI) showRemoteFileDialog() {
 	}
 
 	scroll := container.NewScroll(content)
-	scroll.SetMinSize(fyne.NewSize(650, 300))
+	scroll.SetMinSize(fyne.NewSize(RemoteScrollMinWidth, RemoteScrollMinHeight))
 
 	// 创建全选/全不选按钮
 	selectAllBtn := widget.NewButton("Select All", func() {
@@ -626,7 +644,7 @@ func (ui *AppUI) GetLogWidget() *widget.TextGrid {
 
 // openSelectedInFileManager opens the file manager for the currently selected item
 func (ui *AppUI) openSelectedInFileManager() {
-	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) || ui.selectedName == "" {
+	if !ui.validateSelection() {
 		dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
 		return
 	}
