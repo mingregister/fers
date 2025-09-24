@@ -96,7 +96,6 @@ func (h *UILogHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Update the widget - TextGrid performs better with SetText than incremental updates
 	allText := strings.Join(h.logs, "\n")
 	h.logWidget.SetText(allText)
-
 	// Refresh the widget to ensure UI updates
 	h.logWidget.Refresh()
 

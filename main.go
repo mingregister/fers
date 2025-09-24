@@ -57,6 +57,8 @@ func main() {
 	// Create log widget first.
 	// NOTE: logWidget需要先绑定到window才能使用.
 	logWidget := widget.NewTextGrid()
+	logWidget.Scroll = fyne.ScrollBoth
+	logWidget.ShowWhitespace = true
 
 	// Set up UI logger
 	uiLogHandler := appui.NewUILogHandler(logWidget, &slog.HandlerOptions{
