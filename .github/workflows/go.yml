@@ -77,9 +77,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            fyne-cross/dist/*/release/${{ github.event.repository.name }}-linux-amd64
-            fyne-cross/dist/*/release/${{ github.event.repository.name }}-windows-amd64.exe
-            fyne-cross/dist/*/release/${{ github.event.repository.name }}-darwin-amd64
+            fyne-cross/dist/*/release/*
+            fyne-cross/dist/*/release/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
