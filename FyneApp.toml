@@ -1,8 +1,16 @@
 [Details]
 Name = "fers"
-ID = "fers"
+ID = "io.github.mingregister.fers"
 Version = "0.1.0"
 Build = 6
+Icon = "Icon.png"
 
 [Migrations]
 fyneDo = true
+
+
+[Params]
+Description = "Encrypt your file and store it safely in remote storage."
+URL = "https://github.com/mingregister/fers"
+Author = "mingregister"
+Category = "Utility"

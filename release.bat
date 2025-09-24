@@ -18,7 +18,7 @@ REM go clean -cache
 
 REM 编译当前目录
 @REM go build -o app.exe main.go
-fyne package --name Fers --icon Icon.jpg --os windows --release --id fers.mingregister.github.com 
+fyne package --name Fers --icon Icon.jpg --os windows --release --id io.github.mingregister.fers
 
 REM 提示完成
 echo.

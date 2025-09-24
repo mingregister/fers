@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="Icon.jpg" alt="FERS Logo" width="80" height="80">
+<img src="Icon.png" alt="FERS Logo" width="80" height="80">
 
 **一个安全、易用的文件加密与云存储管理工具**
 
