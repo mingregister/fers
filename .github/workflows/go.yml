@@ -80,8 +80,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            fyne-cross/dist/*/release/*
-            fyne-cross/dist/*/release/*
+            fyne-cross/dist/*/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -116,7 +115,7 @@ jobs:
       - name: Release macOS binary
         uses: softprops/action-gh-release@v1
         with:
-          files: fyne-cross/dist/*/release/*
+          files: fyne-cross/dist/*/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
