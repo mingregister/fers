@@ -72,6 +72,9 @@ jobs:
           fyne-cross linux -arch amd64 -output "${PROJECT_NAME}-linux-amd64"
           fyne-cross windows -arch amd64 -output "${PROJECT_NAME}-windows-amd64.exe"
 
+      - name: List build output
+        run: ls -R fyne-cross/dist
+
       # 上传到 Release
       - name: Release Linux & Windows binaries
         uses: softprops/action-gh-release@v1
@@ -99,10 +102,16 @@ jobs:
       - name: Install fyne-cross
         run: go install github.com/fyne-io/fyne-cross@latest
 
+      - name: Add Go bin to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
       - name: Build macOS binary
         run: |
           PROJECT_NAME="${GITHUB_REPOSITORY##*/}"
           fyne-cross darwin -arch amd64 -output "${PROJECT_NAME}-darwin-amd64"
+
+      - name: List build output
+        run: ls -R fyne-cross/dist
 
       - name: Release macOS binary
         uses: softprops/action-gh-release@v1
