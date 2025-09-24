@@ -76,8 +76,8 @@ jobs:
           # Windows amd64
           fyne-cross windows -arch amd64 -output "${PROJECT_NAME}-windows-amd64.exe"
 
-          # macOS amd64
-          fyne-cross darwin -arch amd64 -output "${PROJECT_NAME}-darwin-amd64"
+          # # macOS amd64  # github action not supoprt darwin build
+          # fyne-cross darwin -arch amd64 -output "${PROJECT_NAME}-darwin-amd64"
 
       # 上传到 Release
       - name: Release
