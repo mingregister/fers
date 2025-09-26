@@ -2,10 +2,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -25,6 +31,58 @@ func showFatalError(msg string) {
 	w.Resize(fyne.NewSize(400, 200))
 	dialog.ShowError(errors.New(msg), w)
 	w.ShowAndRun() // 阻塞，用户关掉窗口后进程退出
+}
+
+// startPprofServer starts the pprof HTTP server if enabled
+func startPprofServer(cfg *config.Pprof, logger *slog.Logger) *http.Server {
+	if !cfg.Enabled {
+		return nil
+	}
+
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	server := &http.Server{
+		Addr:         addr,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		logger.Info("Starting pprof server",
+			slog.String("address", addr),
+			slog.String("endpoints", "http://"+addr+"/debug/pprof/"))
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("Pprof server failed", slog.String("error", err.Error()))
+		}
+	}()
+
+	return server
+}
+
+// gracefulShutdown handles graceful shutdown of the pprof server
+func gracefulShutdown(server *http.Server, logger *slog.Logger) {
+	if server == nil {
+		return
+	}
+
+	// Create a channel to listen for interrupt signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		logger.Info("Shutting down pprof server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			logger.Error("Pprof server shutdown failed", slog.String("error", err.Error()))
+		} else {
+			logger.Info("Pprof server shutdown completed")
+		}
+	}()
 }
 
 func NewStorageClient(cfg *config.Storage) (storage.Client, error) {
@@ -61,24 +119,31 @@ func main() {
 	logWidget.Scroll = fyne.ScrollBoth
 	logWidget.ShowWhitespace = true
 
-	var f *os.File
-	if cfg.Log != "" {
-		var err error
-		f, err = os.OpenFile(cfg.Log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			showFatalError(fmt.Sprintf("无法打开日志文件: %v", err))
-			return
-		}
-		defer f.Close()
-	}
-
-	// Set up UI logger
-	uiLogHandler := appui.NewUILogHandler(logWidget, &slog.HandlerOptions{
+	logOpt := &slog.HandlerOptions{
 		Level:     slog.Level(cfg.LogLevel),
 		AddSource: true,
-	}, f)
+	}
+
+	f, err := os.OpenFile(cfg.Log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		showFatalError(fmt.Sprintf("无法打开日志文件: %v", err))
+		return
+	}
+	defer f.Close()
+
+	th := slog.NewTextHandler(f, logOpt) // Validate options
+	textLogger := slog.New(th)
+
+	// Set up UI logger
+	uiLogHandler := appui.NewUILogHandler(logWidget, logOpt, textLogger)
 	logger := slog.New(uiLogHandler)
 	slog.SetDefault(logger)
+
+	// Start pprof server if enabled
+	pprofServer := startPprofServer(&cfg.Pprof, textLogger)
+	if pprofServer != nil {
+		gracefulShutdown(pprofServer, textLogger)
+	}
 
 	storageClient, err := NewStorageClient(&cfg.Storage)
 	if err != nil {

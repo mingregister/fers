@@ -3,7 +3,6 @@ package appui
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -22,18 +21,12 @@ type UILogHandler struct {
 }
 
 // NewUILogHandler creates a new UI log handler
-func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions, w io.Writer) *UILogHandler {
+func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions, l *slog.Logger) *UILogHandler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{
 			Level:     slog.LevelInfo,
 			AddSource: true,
 		}
-	}
-
-	var l *slog.Logger
-	if w != nil {
-		th := slog.NewTextHandler(w, opts) // Validate options
-		l = slog.New(th)
 	}
 
 	return &UILogHandler{
