@@ -17,14 +17,15 @@ type UILogHandler struct {
 	mutex     sync.Mutex
 	opts      slog.HandlerOptions
 	logs      []string
+	logger    *slog.Logger
 }
 
 // NewUILogHandler creates a new UI log handler
-func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions) *UILogHandler {
+func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions, l *slog.Logger) *UILogHandler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{
 			Level:     slog.LevelInfo,
-			AddSource: false,
+			AddSource: true,
 		}
 	}
 
@@ -32,6 +33,7 @@ func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions) *UIL
 		logWidget: logWidget,
 		opts:      *opts,
 		logs:      make([]string, 0),
+		logger:    l,
 	}
 }
 
@@ -44,6 +46,11 @@ func (h *UILogHandler) Enabled(ctx context.Context, level slog.Level) bool {
 func (h *UILogHandler) Handle(ctx context.Context, r slog.Record) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
+
+	if h.logger != nil {
+		// Also log to the underlying logger if set
+		h.logger.Handler().Handle(ctx, r.Clone())
+	}
 
 	// Format the log message
 	timestamp := r.Time.Format("2006-01-02 15:04:05")
@@ -96,7 +103,6 @@ func (h *UILogHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Update the widget - TextGrid performs better with SetText than incremental updates
 	allText := strings.Join(h.logs, "\n")
 	h.logWidget.SetText(allText)
-
 	// Refresh the widget to ensure UI updates
 	h.logWidget.Refresh()
 
