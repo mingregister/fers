@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -60,11 +61,22 @@ func main() {
 	logWidget.Scroll = fyne.ScrollBoth
 	logWidget.ShowWhitespace = true
 
+	var f *os.File
+	if cfg.Log != "" {
+		var err error
+		f, err = os.OpenFile(cfg.Log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			showFatalError(fmt.Sprintf("无法打开日志文件: %v", err))
+			return
+		}
+		defer f.Close()
+	}
+
 	// Set up UI logger
 	uiLogHandler := appui.NewUILogHandler(logWidget, &slog.HandlerOptions{
 		Level:     slog.Level(cfg.LogLevel),
 		AddSource: true,
-	})
+	}, f)
 	logger := slog.New(uiLogHandler)
 	slog.SetDefault(logger)
 

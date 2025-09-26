@@ -3,6 +3,7 @@ package appui
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"runtime"
 	"strings"
@@ -17,21 +18,29 @@ type UILogHandler struct {
 	mutex     sync.Mutex
 	opts      slog.HandlerOptions
 	logs      []string
+	logger    *slog.Logger
 }
 
 // NewUILogHandler creates a new UI log handler
-func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions) *UILogHandler {
+func NewUILogHandler(logWidget *widget.TextGrid, opts *slog.HandlerOptions, w io.Writer) *UILogHandler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{
 			Level:     slog.LevelInfo,
-			AddSource: false,
+			AddSource: true,
 		}
+	}
+
+	var l *slog.Logger
+	if w != nil {
+		th := slog.NewTextHandler(w, opts) // Validate options
+		l = slog.New(th)
 	}
 
 	return &UILogHandler{
 		logWidget: logWidget,
 		opts:      *opts,
 		logs:      make([]string, 0),
+		logger:    l,
 	}
 }
 
@@ -44,6 +53,11 @@ func (h *UILogHandler) Enabled(ctx context.Context, level slog.Level) bool {
 func (h *UILogHandler) Handle(ctx context.Context, r slog.Record) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
+
+	if h.logger != nil {
+		// Also log to the underlying logger if set
+		h.logger.Handler().Handle(ctx, r.Clone())
+	}
 
 	// Format the log message
 	timestamp := r.Time.Format("2006-01-02 15:04:05")

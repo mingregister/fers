@@ -13,7 +13,7 @@ import (
 func TestNewUILogHandler(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	if handler == nil {
 		t.Fatal("NewUILogHandler returned nil")
@@ -30,7 +30,7 @@ func TestNewUILogHandler(t *testing.T) {
 
 func TestNewUILogHandler_WithNilOpts(t *testing.T) {
 	logWidget := widget.NewTextGrid()
-	handler := NewUILogHandler(logWidget, nil)
+	handler := NewUILogHandler(logWidget, nil, nil)
 
 	if handler == nil {
 		t.Fatal("NewUILogHandler returned nil")
@@ -44,7 +44,7 @@ func TestNewUILogHandler_WithNilOpts(t *testing.T) {
 func TestUILogHandler_Enabled(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelWarn}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -70,7 +70,7 @@ func TestUILogHandler_Enabled(t *testing.T) {
 func TestUILogHandler_Handle(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -101,7 +101,7 @@ func TestUILogHandler_Handle(t *testing.T) {
 func TestUILogHandler_HandleMultipleMessages(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -132,7 +132,7 @@ func TestUILogHandler_HandleMultipleMessages(t *testing.T) {
 func TestUILogHandler_HandleDifferentLevels(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -170,7 +170,7 @@ func TestUILogHandler_HandleDifferentLevels(t *testing.T) {
 func TestUILogHandler_HandleWithAttributes(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -205,7 +205,7 @@ func TestUILogHandler_HandleWithAttributes(t *testing.T) {
 func TestUILogHandler_WithAttrs(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	attrs := []slog.Attr{
 		slog.String("component", "test"),
@@ -231,7 +231,7 @@ func TestUILogHandler_WithAttrs(t *testing.T) {
 func TestUILogHandler_WithGroup(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	newHandler := handler.WithGroup("testgroup")
 	if newHandler == nil {
@@ -252,7 +252,7 @@ func TestUILogHandler_WithGroup(t *testing.T) {
 func TestUILogHandler_HandleEmptyMessage(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -276,7 +276,7 @@ func TestUILogHandler_HandleEmptyMessage(t *testing.T) {
 func TestUILogHandler_HandleLongMessage(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -301,7 +301,7 @@ func TestUILogHandler_HandleLongMessage(t *testing.T) {
 func TestUILogHandler_HandleUnicodeMessage(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -326,7 +326,7 @@ func TestUILogHandler_HandleUnicodeMessage(t *testing.T) {
 func TestUILogHandler_InterfaceCompliance(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	// Test that UILogHandler implements slog.Handler
 	var _ slog.Handler = handler
@@ -335,7 +335,7 @@ func TestUILogHandler_InterfaceCompliance(t *testing.T) {
 func TestUILogHandler_ConcurrentAccess(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -373,7 +373,7 @@ func TestUILogHandler_ConcurrentAccess(t *testing.T) {
 func TestUILogHandler_TimeFormatting(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -399,7 +399,7 @@ func TestUILogHandler_TimeFormatting(t *testing.T) {
 func TestUILogHandler_LogsLimit(t *testing.T) {
 	logWidget := widget.NewTextGrid()
 	opts := &slog.HandlerOptions{Level: slog.LevelDebug}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
@@ -430,7 +430,7 @@ func TestUILogHandler_AddSource(t *testing.T) {
 		Level:     slog.LevelDebug,
 		AddSource: true,
 	}
-	handler := NewUILogHandler(logWidget, opts)
+	handler := NewUILogHandler(logWidget, opts, nil)
 
 	ctx := context.Background()
 
