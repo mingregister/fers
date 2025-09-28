@@ -434,62 +434,202 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 
 // showRemoteFileDialog shows a dialog to select and download remote files
 func (ui *AppUI) showRemoteFileDialog() {
-	// 获取远程文件列表
-	rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
-	if err != nil {
-		ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
-		rel = ""
-	}
-	if rel == "." {
-		rel = ""
-	}
-	remoteFiles, err := ui.fileManager.ListRemoteFiles(rel)
-	if err != nil {
-		ShowDialogError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
-		return
-	}
-
-	if len(remoteFiles) == 0 {
-		ShowDialog(InfoDialog, ui.window, "Info", "No remote files found")
-		return
-	}
-
 	// 创建新窗口显示远程文件
 	remoteWindow := ui.app.NewWindow("Remote Files")
 	remoteWindow.Resize(fyne.NewSize(RemoteWindowWidth, RemoteWindowHeight))
 	remoteWindow.CenterOnScreen()
 
-	// 创建多选文件列表
-	selectedFiles := make(map[int]bool)
-	var checkBoxes []*widget.Check
+	// 创建加载指示器
+	loadingLabel := widget.NewLabel("Loading remote files...")
+	progressBar := widget.NewProgressBarInfinite()
+	progressBar.Start()
 
-	// 创建滚动容器来容纳复选框列表
-	content := container.NewVBox()
+	loadingContent := container.NewVBox(
+		loadingLabel,
+		progressBar,
+		widget.NewButton("Cancel", func() {
+			remoteWindow.Close()
+		}),
+	)
 
-	for i, fileName := range remoteFiles {
-		index := i // 捕获循环变量
-		check := widget.NewCheck(fileName, func(checked bool) {
-			selectedFiles[index] = checked
+	remoteWindow.SetContent(container.NewCenter(loadingContent))
+	remoteWindow.Show()
+
+	// 异步获取远程文件列表
+	go func() {
+		rel, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+		if err != nil {
+			ui.logger.Warn("Rel path failed", slog.String("workDir", ui.fileManager.GetWorkingDir()), slog.String("currentDir", ui.currentDir))
+			rel = ""
+		}
+		if rel == "." {
+			rel = ""
+		}
+
+		remoteFiles, err := ui.fileManager.ListRemoteFiles(rel)
+		if err != nil {
+			fyne.Do(func() {
+				remoteWindow.Close()
+				ShowDialogError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
+			})
+			return
+		}
+
+		if len(remoteFiles) == 0 {
+			fyne.Do(func() {
+				remoteWindow.Close()
+				ShowDialog(InfoDialog, ui.window, "Info", "No remote files found")
+			})
+			return
+		}
+
+		// 在UI线程中创建文件选择界面
+		fyne.Do(func() {
+			ui.createRemoteFileSelectionUI(remoteWindow, remoteFiles)
 		})
-		checkBoxes = append(checkBoxes, check)
-		content.Add(check)
+	}()
+}
+
+// createRemoteFileSelectionUI creates the file selection interface with performance optimizations
+func (ui *AppUI) createRemoteFileSelectionUI(remoteWindow fyne.Window, remoteFiles []string) {
+	selectedFiles := make(map[int]bool)
+
+	// 创建搜索框
+	searchEntry := widget.NewEntry()
+	searchEntry.SetPlaceHolder("Search files...")
+
+	// 过滤后的文件列表
+	var filteredFiles []string
+	var filteredIndices []int
+
+	// 更新过滤列表的函数
+	updateFilteredFiles := func(searchText string) {
+		filteredFiles = filteredFiles[:0]
+		filteredIndices = filteredIndices[:0]
+
+		searchLower := strings.ToLower(searchText)
+		for i, fileName := range remoteFiles {
+			if searchText == "" || strings.Contains(strings.ToLower(fileName), searchLower) {
+				filteredFiles = append(filteredFiles, fileName)
+				filteredIndices = append(filteredIndices, i)
+			}
+		}
 	}
 
-	scroll := container.NewScroll(content)
+	// 初始化显示所有文件
+	updateFilteredFiles("")
+
+	// 创建虚拟化列表容器
+	listContainer := container.NewVBox()
+	scroll := container.NewScroll(listContainer)
 	scroll.SetMinSize(fyne.NewSize(RemoteScrollMinWidth, RemoteScrollMinHeight))
+
+	// 批处理参数
+	const batchSize = 50
+	var currentBatch int
+	var checkBoxes []*widget.Check
+
+	// 状态标签
+	statusLabel := widget.NewLabel(fmt.Sprintf("Showing %d files", len(filteredFiles)))
+
+	// 加载更多按钮 - 需要在renderBatch函数之前声明
+	var loadMoreBtn *widget.Button
+
+	// 渲染批次的函数
+	renderBatch := func() {
+		start := currentBatch * batchSize
+		end := start + batchSize
+		if end > len(filteredFiles) {
+			end = len(filteredFiles)
+		}
+
+		if start >= len(filteredFiles) {
+			return
+		}
+
+		for i := start; i < end; i++ {
+			fileName := filteredFiles[i]
+			originalIndex := filteredIndices[i]
+
+			check := widget.NewCheck(fileName, func(checked bool) {
+				selectedFiles[originalIndex] = checked
+			})
+
+			// 恢复之前的选择状态
+			if selected, exists := selectedFiles[originalIndex]; exists {
+				check.SetChecked(selected)
+			}
+
+			checkBoxes = append(checkBoxes, check)
+			listContainer.Add(check)
+		}
+
+		currentBatch++
+		listContainer.Refresh()
+
+		// 检查是否需要隐藏加载更多按钮
+		if loadMoreBtn != nil && currentBatch*batchSize >= len(filteredFiles) {
+			loadMoreBtn.Hide()
+		}
+	}
+
+	// 重新渲染列表的函数
+	rerenderList := func() {
+		// 清空现有内容
+		listContainer.RemoveAll()
+		checkBoxes = checkBoxes[:0]
+		currentBatch = 0
+
+		// 更新状态标签
+		statusLabel.SetText(fmt.Sprintf("Showing %d files", len(filteredFiles)))
+
+		// 渲染第一批
+		if len(filteredFiles) > 0 {
+			renderBatch()
+		}
+
+		// 显示或隐藏加载更多按钮
+		if loadMoreBtn != nil {
+			if len(filteredFiles) <= batchSize {
+				loadMoreBtn.Hide()
+			} else {
+				loadMoreBtn.Show()
+			}
+		}
+	}
+
+	// 创建加载更多按钮
+	loadMoreBtn = widget.NewButton("Load More", func() {
+		renderBatch()
+	})
+
+	// 搜索框事件
+	searchEntry.OnChanged = func(text string) {
+		updateFilteredFiles(text)
+		rerenderList()
+	}
+
+	// 初始渲染
+	rerenderList()
 
 	// 创建全选/全不选按钮
 	selectAllBtn := widget.NewButton("Select All", func() {
-		for i, check := range checkBoxes {
+		for _, index := range filteredIndices {
+			selectedFiles[index] = true
+		}
+		// 更新已渲染的复选框
+		for _, check := range checkBoxes {
 			check.SetChecked(true)
-			selectedFiles[i] = true
 		}
 	})
 
 	deselectAllBtn := widget.NewButton("Deselect All", func() {
-		for i, check := range checkBoxes {
+		for _, index := range filteredIndices {
+			selectedFiles[index] = false
+		}
+		// 更新已渲染的复选框
+		for _, check := range checkBoxes {
 			check.SetChecked(false)
-			selectedFiles[i] = false
 		}
 	})
 
@@ -532,22 +672,27 @@ func (ui *AppUI) showRemoteFileDialog() {
 	})
 
 	// 布局
-	topButtons := container.NewHBox(selectAllBtn, deselectAllBtn)
-	bottomButtons := container.NewHBox(downloadBtn, cancelBtn)
+	topSection := container.NewVBox(
+		widget.NewLabel("Select remote files to download:"),
+		searchEntry,
+		statusLabel,
+		container.NewHBox(selectAllBtn, deselectAllBtn),
+	)
+
+	bottomSection := container.NewVBox(
+		loadMoreBtn,
+		container.NewHBox(downloadBtn, cancelBtn),
+	)
 
 	finalContent := container.NewBorder(
-		container.NewVBox(
-			widget.NewLabel("Select remote files to download:"),
-			topButtons,
-		),
-		bottomButtons,
+		topSection,
+		bottomSection,
 		nil,
 		nil,
 		scroll,
 	)
 
 	remoteWindow.SetContent(finalContent)
-	remoteWindow.Show()
 }
 
 // GetLogWidget returns the log widget for setting up log handler
