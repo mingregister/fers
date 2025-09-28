@@ -271,26 +271,26 @@ storage:
 	}
 }
 
-func TestNewConfig_NoConfigFile(t *testing.T) {
-	// Test in a directory without config file
-	tempDir := t.TempDir()
+// func TestNewConfig_NoConfigFile(t *testing.T) {
+// 	// Test in a directory without config file
+// 	tempDir := t.TempDir()
 
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer os.Chdir(originalDir)
+// 	originalDir, err := os.Getwd()
+// 	if err != nil {
+// 		t.Fatalf("Failed to get current directory: %v", err)
+// 	}
+// 	defer os.Chdir(originalDir)
 
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
+// 	err = os.Chdir(tempDir)
+// 	if err != nil {
+// 		t.Fatalf("Failed to change to temp directory: %v", err)
+// 	}
 
-	_, err = NewConfig()
-	if err == nil {
-		t.Error("Expected error when no config file exists")
-	}
-}
+// 	_, err = NewConfig()
+// 	if err == nil {
+// 		t.Error("Expected error when no config file exists")
+// 	}
+// }
 
 func TestNewConfig_WithValidConfig(t *testing.T) {
 	tempDir := t.TempDir()

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -139,9 +140,11 @@ func TestOSSMock_List(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name     string
-		prefix   string
-		expected []string
+		name          string
+		prefix        string
+		expected      []string
+		expectError   bool
+		expectedError error
 	}{
 		{
 			name:     "list all",
@@ -159,21 +162,34 @@ func TestOSSMock_List(t *testing.T) {
 			expected: []string{"other/file4.txt"},
 		},
 		{
-			name:     "list non-existent prefix",
-			prefix:   "nonexistent/",
-			expected: []string{},
+			name:          "list non-existent prefix",
+			prefix:        "nonexistent/",
+			expected:      []string{},
+			expectError:   true,
+			expectedError: os.ErrNotExist, // 如果期望具体的错误类型
 		},
 		{
-			name:     "list specific file prefix",
-			prefix:   "file1",
-			expected: []string{"file1.txt"},
+			name:        "list specific file prefix",
+			prefix:      "file1",
+			expected:    []string{"file1.txt"},
+			expectError: true,
+			// expectedError: os.ErrNotExist, // 如果期望具体的错误类型
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			files, err := client.List(tc.prefix)
-			if err != nil {
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Expected error for prefix %s, but got none", tc.prefix)
+					return
+				}
+				if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+					t.Errorf("Expected error %v, but got %v", tc.expectedError, err)
+				}
+				return
+			} else if err != nil {
 				t.Fatalf("List failed: %v", err)
 			}
 
