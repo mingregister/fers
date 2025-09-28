@@ -4,17 +4,52 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
 	CryptoKey string  `mapstructure:"crypto_key"`
-	Log       string  `mapstructure:"log"`
-	TargetDir string  `mapstructure:"target_dir"`
+	Log       string  `mapstructure:"log" path:"true"`
+	TargetDir string  `mapstructure:"target_dir" path:"true"`
 	Storage   Storage `mapstructure:"storage"`
 	LogLevel  int     `mapstructure:"log_level"`
 	Pprof     Pprof   `mapstructure:"pprof"`
+}
+
+func (c *Config) normalizePaths() {
+	v := reflect.ValueOf(c).Elem()
+	c.normalizePathsRecursive(v)
+}
+
+func (c *Config) normalizePathsRecursive(v reflect.Value) {
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+
+		if field.Kind() == reflect.Struct {
+			c.normalizePathsRecursive(field)
+			continue
+		}
+
+		if field.Kind() == reflect.String && field.CanSet() {
+			// 检查是否有path tag
+			if pathTag, ok := fieldType.Tag.Lookup("path"); ok && pathTag == "true" {
+				normalized := filepath.ToSlash(field.String())
+				field.SetString(normalized)
+			}
+		}
+	}
 }
 
 type Pprof struct {
@@ -30,7 +65,7 @@ type Storage struct {
 }
 
 type Localhost struct {
-	Workdir string `mapstructure:"work_dir"`
+	Workdir string `mapstructure:"work_dir" path:"true"`
 }
 
 // OSS contains the configuration for OSS client
@@ -41,7 +76,7 @@ type OSS struct {
 	AccessKeySecret string `mapstructure:"access_key_secret"`
 	BucketName      string `mapstructure:"bucket_name"`
 	Region          string `mapstructure:"region"`
-	WorkDir         string `mapstructure:"workDir"`
+	WorkDir         string `mapstructure:"workDir" path:"true"`
 }
 
 func NewConfig() (*Config, error) {
@@ -93,6 +128,13 @@ func LoadFromFile(configName string) (*Config, error) {
 	if err := v.Unmarshal(&config); err != nil {
 		return nil, fmt.Errorf("unable to decode config into struct: %w", err)
 	}
+
+	// // 使用 filepath.ToSlash 处理路径相关字段，确保跨平台兼容性
+	// config.Log = filepath.ToSlash(config.Log)
+	// config.TargetDir = filepath.ToSlash(config.TargetDir)
+	// config.Storage.Localhost.Workdir = filepath.ToSlash(config.Storage.Localhost.Workdir)
+	// config.Storage.Oss.WorkDir = filepath.ToSlash(config.Storage.Oss.WorkDir)
+	config.normalizePaths()
 
 	return &config, nil
 }

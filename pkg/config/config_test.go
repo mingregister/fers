@@ -451,3 +451,70 @@ storage:
 		t.Errorf("workDir mapping failed: expected '/tag/work', got '%s'", config.Storage.Oss.WorkDir)
 	}
 }
+
+func TestConfig_PathNormalization(t *testing.T) {
+	// Test that filepath.ToSlash is applied to path fields
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+
+	// Use Windows-style paths with backslashes to test normalization
+	configContent := `
+crypto_key: "path-test"
+log: "C:\\logs\\app.log"
+target_dir: "C:\\data\\target"
+storage:
+  remote_type: "localhost"
+  localhost:
+    work_dir: "C:\\data\\localhost"
+  oss:
+    enabled: true
+    endpoint: "oss-cn-hangzhou.aliyuncs.com"
+    access_key_id: "test-key"
+    access_key_secret: "test-secret"
+    bucket_name: "test-bucket"
+    region: "cn-hangzhou"
+    workDir: "C:\\data\\oss"
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test config file: %v", err)
+	}
+
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	config, err := LoadFromFile("config")
+	if err != nil {
+		t.Fatalf("LoadFromFile failed: %v", err)
+	}
+
+	// Verify that all path fields have been normalized with forward slashes
+	expectedLog := "C:/logs/app.log"
+	if config.Log != expectedLog {
+		t.Errorf("Log path not normalized: expected '%s', got '%s'", expectedLog, config.Log)
+	}
+
+	expectedTargetDir := "C:/data/target"
+	if config.TargetDir != expectedTargetDir {
+		t.Errorf("TargetDir path not normalized: expected '%s', got '%s'", expectedTargetDir, config.TargetDir)
+	}
+
+	expectedLocalhostWorkdir := "C:/data/localhost"
+	if config.Storage.Localhost.Workdir != expectedLocalhostWorkdir {
+		t.Errorf("Localhost.Workdir path not normalized: expected '%s', got '%s'", expectedLocalhostWorkdir, config.Storage.Localhost.Workdir)
+	}
+
+	expectedOssWorkDir := "C:/data/oss"
+	if config.Storage.Oss.WorkDir != expectedOssWorkDir {
+		t.Errorf("OSS.WorkDir path not normalized: expected '%s', got '%s'", expectedOssWorkDir, config.Storage.Oss.WorkDir)
+	}
+}
