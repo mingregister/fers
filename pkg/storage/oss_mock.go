@@ -15,7 +15,7 @@ type ossMock struct {
 }
 
 func NewOSSMock(base string) Client {
-	if err := os.MkdirAll(base, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.ToSlash(base), 0o755); err != nil {
 		panic(err)
 	}
 	return &ossMock{base: base}
@@ -27,7 +27,7 @@ func (o *ossMock) List(prefix string) ([]string, error) {
 	var out []string
 
 	root := filepath.Join(o.base, filepath.FromSlash(prefix))
-
+	prefix = filepath.ToSlash(prefix)
 	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

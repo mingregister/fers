@@ -206,7 +206,7 @@ func (fm *FileManager) SyncUpload(ctx context.Context) error {
 
 // ListRemoteFiles returns a list of all remote files
 func (fm *FileManager) ListRemoteFiles(prefix string) ([]string, error) {
-	return fm.storage.List(prefix)
+	return fm.storage.List(filepath.ToSlash(prefix))
 }
 
 // DownloadSpecificFile downloads a specific file from remote storage

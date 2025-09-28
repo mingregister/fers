@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
@@ -33,7 +34,7 @@ func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, wo
 	// Create OSS client
 	client := oss.NewClient(cfg)
 
-	workDir = strings.Replace(workDir, "//", "/", -1)
+	workDir = filepath.ToSlash(workDir)
 	workDir = strings.TrimPrefix(workDir, "/")
 	return &ossClient{
 		client:     client,
