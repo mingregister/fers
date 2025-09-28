@@ -498,22 +498,23 @@ storage:
 	}
 
 	// Verify that all path fields have been normalized with forward slashes
-	expectedLog := "C:/logs/app.log"
+	expectedLog := filepath.ToSlash("C:\\logs\\app.log")
+	expectedTargetDir := filepath.ToSlash("C:\\data\\target")
+	expectedLocalhostWorkdir := filepath.ToSlash("C:\\data\\localhost")
+	expectedOssWorkDir := filepath.ToSlash("C:\\data\\oss")
+	// expectedLog_linux := `C:\logs\app.log`
 	if config.Log != expectedLog {
 		t.Errorf("Log path not normalized: expected '%s', got '%s'", expectedLog, config.Log)
 	}
 
-	expectedTargetDir := "C:/data/target"
 	if config.TargetDir != expectedTargetDir {
 		t.Errorf("TargetDir path not normalized: expected '%s', got '%s'", expectedTargetDir, config.TargetDir)
 	}
 
-	expectedLocalhostWorkdir := "C:/data/localhost"
 	if config.Storage.Localhost.Workdir != expectedLocalhostWorkdir {
 		t.Errorf("Localhost.Workdir path not normalized: expected '%s', got '%s'", expectedLocalhostWorkdir, config.Storage.Localhost.Workdir)
 	}
 
-	expectedOssWorkDir := "C:/data/oss"
 	if config.Storage.Oss.WorkDir != expectedOssWorkDir {
 		t.Errorf("OSS.WorkDir path not normalized: expected '%s', got '%s'", expectedOssWorkDir, config.Storage.Oss.WorkDir)
 	}
