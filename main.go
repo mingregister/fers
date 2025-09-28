@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -106,6 +107,7 @@ func NewStorageClient(cfg *config.Storage) (storage.Client, error) {
 }
 
 func main() {
+
 	// Initialize configuration
 	cfg, err := config.NewConfig()
 	if err != nil {
@@ -133,6 +135,13 @@ func main() {
 
 	th := slog.NewTextHandler(f, logOpt) // Validate options
 	textLogger := slog.New(th)
+
+	defer func() {
+		if r := recover(); r != nil {
+			textLogger.Error("捕获到panic", slog.String("error", fmt.Sprintf("%v", r)), slog.String("stack", string(debug.Stack())))
+			f.Sync()
+		}
+	}()
 
 	// Set up UI logger
 	uiLogHandler := appui.NewUILogHandler(logWidget, logOpt, textLogger)

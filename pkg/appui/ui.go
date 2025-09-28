@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -171,14 +172,17 @@ func (ui *AppUI) refreshItems() {
 // refreshList refreshes the UI list
 func (ui *AppUI) refreshList() {
 	ui.refreshItems()
-	if ui.rightClickableList != nil {
-		ui.rightClickableList.SetItems(ui.items)
-		ui.rightClickableList.Refresh()
-		// 清除选择状态
-		ui.rightClickableList.UnselectAll()
-	}
-	ui.selectedIndex = -1
-	ui.selectedName = ""
+
+	fyne.Do(func() {
+		if ui.rightClickableList != nil {
+			ui.rightClickableList.SetItems(ui.items)
+			ui.rightClickableList.Refresh()
+			// 清除选择状态
+			ui.rightClickableList.UnselectAll()
+		}
+		ui.selectedIndex = -1
+		ui.selectedName = ""
+	})
 }
 
 func (ui *AppUI) showContextMenu(pos fyne.Position) {
@@ -198,7 +202,7 @@ func (ui *AppUI) goUpDirectory() {
 
 	// 不能超出workingDir的范围
 	if cleanCurrentDir == cleanWorkingDir {
-		dialog.ShowInformation("Info", "Already at working directory root", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "Already at working directory root")
 		return
 	}
 
@@ -218,10 +222,9 @@ func (ui *AppUI) goUpDirectory() {
 // enterSelectedDirectory enters the selected directory
 func (ui *AppUI) enterSelectedDirectory() {
 	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
-		dialog.ShowInformation("Info", "Please select a directory first", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "Please select a directory first")
 		return
 	}
-
 	ui.enterDirectory(ui.selectedName)
 }
 
@@ -232,12 +235,12 @@ func (ui *AppUI) enterDirectory(dirName string) {
 	// 检查是否是目录
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to access %s: %w", dirName, err), ui.window)
+		ShowDialogError(fmt.Errorf("failed to access %s: %w", dirName, err), ui.window)
 		return
 	}
 
 	if !info.IsDir() {
-		dialog.ShowInformation("Info", "Selected item is not a directory", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "Selected item is not a directory")
 		return
 	}
 
@@ -248,7 +251,7 @@ func (ui *AppUI) enterDirectory(dirName string) {
 	// 使用相对路径检查是否在workingDir范围内
 	relPath, err := filepath.Rel(cleanWorkingDir, cleanFullPath)
 	if err != nil || strings.HasPrefix(relPath, "..") {
-		dialog.ShowInformation("Info", "Cannot navigate outside working directory", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "Cannot navigate outside working directory")
 		return
 	}
 
@@ -264,7 +267,7 @@ func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 	return widget.NewButton("Encrypt & Upload", func() {
 		// 检查是否有选中的项目
 		if !ui.validateSelection() {
-			dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
+			ShowDialog(InfoDialog, ui.window, "Info", "Please select a file or directory first")
 			return
 		}
 
@@ -318,7 +321,7 @@ func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 	return widget.NewButton("Delete Local File", func() {
 		// 检查是否有选中的项目
 		if !ui.validateSelection() {
-			dialog.ShowInformation("Info", "Please select a file first", ui.window)
+			ShowDialog(InfoDialog, ui.window, "Info", "Please select a file first")
 			return
 		}
 
@@ -328,19 +331,19 @@ func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 		// 检查是否是文件
 		info, err := os.Stat(fullPath)
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("failed to access %s: %w", name, err), ui.window)
+			ShowDialogError(fmt.Errorf("failed to access %s: %w", name, err), ui.window)
 			return
 		}
 
 		if info.IsDir() {
-			dialog.ShowInformation("Info", "Please select a file, not a directory", ui.window)
+			ShowDialog(InfoDialog, ui.window, "Info", "Please select a file, not a directory")
 			return
 		}
 
 		// 计算相对路径
 		relativePath, err := filepath.Rel(ui.fileManager.GetWorkingDir(), fullPath)
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("failed to get relative path: %w", err), ui.window)
+			ShowDialogError(fmt.Errorf("failed to get relative path: %w", err), ui.window)
 			return
 		}
 
@@ -350,10 +353,10 @@ func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 			func(confirmed bool) {
 				if confirmed {
 					if err := ui.fileManager.DeleteLocalFile(relativePath); err != nil {
-						dialog.ShowError(err, ui.window)
+						ShowDialogError(err, ui.window)
 					} else {
 						ui.refreshList()
-						dialog.ShowInformation("Success", "File deleted successfully", ui.window)
+						ShowDialog(InfoDialog, ui.window, "Success", "File deleted successfully")
 					}
 				}
 			}, ui.window)
@@ -399,7 +402,16 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 		defer func() {
 			ui.operationMutex.Lock()
 			ui.cancelFunc = nil
-			ui.operationMutex.Unlock()
+			if e := recover(); e != nil {
+				ui.logger.Error("Operation panicked", slog.String("operation", operationName))
+			}
+			// 强制刷新日志文件
+			if f, ok := ui.logger.Handler().(interface{ Sync() error }); ok {
+				f.Sync()
+			}
+			fyne.Do(func() {
+				ui.operationMutex.Unlock()
+			})
 		}()
 
 		ui.logger.Info("Starting operation", slog.String("operation", operationName))
@@ -411,7 +423,7 @@ func (ui *AppUI) runOperation(operationName string, operation func(context.Conte
 				ui.logger.Error("Operation failed",
 					slog.String("operation", operationName),
 					slog.String("error", err.Error()))
-				dialog.ShowError(err, ui.window)
+				ShowDialogError(err, ui.window)
 			}
 			return
 		}
@@ -433,12 +445,12 @@ func (ui *AppUI) showRemoteFileDialog() {
 	}
 	remoteFiles, err := ui.fileManager.ListRemoteFiles(rel)
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
+		ShowDialogError(fmt.Errorf("failed to list remote files: %w", err), ui.window)
 		return
 	}
 
 	if len(remoteFiles) == 0 {
-		dialog.ShowInformation("Info", "No remote files found", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "No remote files found")
 		return
 	}
 
@@ -492,7 +504,7 @@ func (ui *AppUI) showRemoteFileDialog() {
 		}
 
 		if len(filesToDownload) == 0 {
-			dialog.ShowInformation("Info", "Please select at least one file", remoteWindow)
+			ShowDialog(InfoDialog, remoteWindow, "Info", "Please select at least one file")
 			return
 		}
 
@@ -546,13 +558,13 @@ func (ui *AppUI) GetLogWidget() *widget.TextGrid {
 // openSelectedInFileManager opens the file manager for the currently selected item
 func (ui *AppUI) openSelectedInFileManager() {
 	if ui.selectedIndex < 0 || ui.selectedIndex >= len(ui.items) {
-		dialog.ShowInformation("Info", "Please select a file or directory first", ui.window)
+		ShowDialog(InfoDialog, ui.window, "Info", "Please select a file or directory first")
 		return
 	}
 	fullPath := filepath.Join(ui.currentDir, ui.selectedName)
 	if err := ui.openInFileManager(fullPath); err != nil {
 		ui.logger.Error("Failed to open file manager", slog.String("error", err.Error()))
-		dialog.ShowError(fmt.Errorf("failed to open file manager: %w", err), ui.window)
+		ShowDialogError(fmt.Errorf("failed to open file manager: %w", err), ui.window)
 	}
 	ui.selectedIndex = -1
 	ui.selectedName = ""
@@ -601,5 +613,12 @@ func (ui *AppUI) openInFileManager(path string) error {
 
 // Run starts the application
 func (ui *AppUI) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			ui.logger.Error("UI Run panic",
+				slog.String("error", fmt.Sprintf("%v", r)),
+				slog.String("stack", string(debug.Stack())))
+		}
+	}()
 	ui.window.ShowAndRun()
 }

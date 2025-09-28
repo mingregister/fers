@@ -25,7 +25,10 @@ func (o *ossMock) List(prefix string) ([]string, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	var out []string
-	err := filepath.Walk(o.base, func(p string, info os.FileInfo, err error) error {
+
+	root := filepath.Join(o.base, filepath.FromSlash(prefix))
+
+	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
