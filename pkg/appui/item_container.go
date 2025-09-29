@@ -117,6 +117,7 @@ func (ic *ItemContainer) DoubleTapped(pe *fyne.PointEvent) {
 	}
 }
 
+
 // itemContainerRenderer 自定义渲染器
 type itemContainerRenderer struct {
 	container  *ItemContainer
@@ -143,3 +144,4 @@ func (r *itemContainerRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *itemContainerRenderer) Destroy() {}
+
