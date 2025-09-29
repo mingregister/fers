@@ -112,6 +112,8 @@ func (ui *AppUI) setupUI() {
 	ui.refreshItems()
 	ui.rightClickableList = NewRightClickableList()
 	ui.rightClickableList.OnItemTapped = func(i int) {
+		// 立即更新选中状态，避免延迟
+		ui.rightClickableList.SetSelectedIndex(i)
 		ui.selectedIndex = i
 		ui.selectedName = ui.items[i]
 		ui.logger.Debug("left click", slog.String("item", ui.selectedName))

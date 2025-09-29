@@ -12,6 +12,7 @@ type RightClickableList struct {
 	widget.BaseWidget
 	list               *widget.List
 	items              []string
+	selectedIndex      int
 	OnItemTapped       func(index int)
 	OnItemRightClick   func(index int, pos fyne.Position)
 	OnItemDoubleTapped func(index int)
@@ -19,7 +20,9 @@ type RightClickableList struct {
 
 // NewRightClickableList 创建新RightClickableList
 func NewRightClickableList() *RightClickableList {
-	rcl := &RightClickableList{}
+	rcl := &RightClickableList{
+		selectedIndex: -1,
+	}
 	rcl.ExtendBaseWidget(rcl)
 	return rcl
 }
@@ -59,8 +62,18 @@ func (rcl *RightClickableList) Build() {
 		},
 		func(i int, o fyne.CanvasObject) {
 			itemContainer := o.(*ItemContainer)
-			itemContainer.SetText(rcl.items[i])
-			itemContainer.SetIndex(i)
+			// 只在必要时更新文本和索引
+			if itemContainer.label.Text != rcl.items[i] {
+				itemContainer.SetText(rcl.items[i])
+			}
+			if itemContainer.index != i {
+				itemContainer.SetIndex(i)
+			}
+			// 只在选中状态真正变化时才调用SetSelected
+			isSelected := i == rcl.selectedIndex
+			if itemContainer.IsSelected() != isSelected {
+				itemContainer.SetSelected(isSelected)
+			}
 		},
 	)
 }
@@ -77,10 +90,31 @@ func (rcl *RightClickableList) Refresh() {
 	}
 }
 
+// SetSelectedIndex 设置选中的索引
+func (rcl *RightClickableList) SetSelectedIndex(index int) {
+	if rcl.selectedIndex == index {
+		return // 状态没有变化，直接返回
+	}
+
+	rcl.selectedIndex = index
+
+	// 立即刷新列表以更新选中状态
+	if rcl.list != nil {
+		rcl.list.Refresh()
+	}
+}
+
+// GetSelectedIndex 获取选中的索引
+func (rcl *RightClickableList) GetSelectedIndex() int {
+	return rcl.selectedIndex
+}
+
 // UnselectAll 取消选中
 func (rcl *RightClickableList) UnselectAll() {
+	rcl.selectedIndex = -1
 	if rcl.list != nil {
 		rcl.list.UnselectAll()
+		rcl.list.Refresh()
 	}
 }
 
