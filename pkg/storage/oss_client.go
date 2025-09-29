@@ -22,7 +22,7 @@ type ossClient struct {
 
 // normalizePath 规范化工作目录路径
 func normalizePath(path string) string {
-	if path == "" {
+	if path == "" || path == "." {
 		return ""
 	}
 
