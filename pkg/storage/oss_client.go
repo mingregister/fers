@@ -20,6 +20,29 @@ type ossClient struct {
 	workDir    string
 }
 
+// normalizePath 规范化工作目录路径
+func normalizePath(path string) string {
+	if path == "" {
+		return ""
+	}
+
+	// 使用filepath.Clean清理路径（兼容不同操作系统）
+	path = filepath.Clean(path)
+
+	// 转换为Unix风格的斜杠（OSS使用/作为路径分隔符）
+	path = filepath.ToSlash(path)
+
+	// 移除开头和结尾的斜杠，但保留中间路径
+	path = strings.Trim(path, "/")
+
+	// 如果清理后为空，返回空字符串
+	if path == "." || path == "" {
+		return ""
+	}
+
+	return path
+}
+
 // NewOSSClient creates a new OSS client using SDK v2
 func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, workDir string) (Client, error) {
 	// Create credentials provider
@@ -34,8 +57,7 @@ func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, wo
 	// Create OSS client
 	client := oss.NewClient(cfg)
 
-	workDir = filepath.ToSlash(workDir)
-	workDir = strings.TrimPrefix(workDir, "/")
+	workDir = normalizePath(workDir)
 	return &ossClient{
 		client:     client,
 		bucketName: bucketName,
@@ -44,7 +66,7 @@ func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, wo
 }
 
 // List all object keys under given prefix
-func (o *ossClient) List(prefix string) ([]string, error) {
+func (o *ossClient) List(ctx context.Context, prefix string) ([]string, error) {
 	var objects []string
 
 	// Create list objects request
@@ -53,8 +75,6 @@ func (o *ossClient) List(prefix string) ([]string, error) {
 		Prefix:  oss.Ptr(o.getFullPath(prefix)),
 		MaxKeys: int32(1000),
 	}
-
-	ctx := context.Background()
 
 	for {
 		// List objects
@@ -94,7 +114,7 @@ func (o *ossClient) List(prefix string) ([]string, error) {
 }
 
 // Upload object with given key and content
-func (o *ossClient) Upload(key string, data []byte) error {
+func (o *ossClient) Upload(ctx context.Context, key string, data []byte) error {
 	reader := bytes.NewReader(data)
 
 	request := &oss.PutObjectRequest{
@@ -103,7 +123,6 @@ func (o *ossClient) Upload(key string, data []byte) error {
 		Body:   reader,
 	}
 
-	ctx := context.Background()
 	_, err := o.client.PutObject(ctx, request)
 	if err != nil {
 		return fmt.Errorf("failed to upload object %s: %w", key, err)
@@ -113,13 +132,12 @@ func (o *ossClient) Upload(key string, data []byte) error {
 }
 
 // Download object by key
-func (o *ossClient) Download(key string) ([]byte, error) {
+func (o *ossClient) Download(ctx context.Context, key string) ([]byte, error) {
 	request := &oss.GetObjectRequest{
 		Bucket: oss.Ptr(o.bucketName),
 		Key:    oss.Ptr(o.getFullPath(key)),
 	}
 
-	ctx := context.Background()
 	result, err := o.client.GetObject(ctx, request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download object %s: %w", key, err)
@@ -136,26 +154,11 @@ func (o *ossClient) Download(key string) ([]byte, error) {
 }
 
 func (o *ossClient) getFullPath(key string) string {
-	// 如果 workDir 为空，直接返回 key
-	if o.workDir == "" {
-		return key
-	}
-
-	// 确保 workDir 不以 / 结尾，key 不以 / 开头
-	workDir := strings.TrimSuffix(o.workDir, "/")
-	cleanKey := strings.TrimPrefix(key, "/")
-
-	// 如果 key 为空，只返回 workDir
-	if cleanKey == "" {
-		return workDir
-	}
-
-	// 组合路径
-	fullPath := fmt.Sprintf("%s/%s", workDir, cleanKey)
-	return strings.Replace(fullPath, "//", "/", -1)
+	fullPath := fmt.Sprintf("%s/%s", o.workDir, key)
+	return normalizePath(fullPath)
 }
 
-func (o *ossClient) Delete(key string) error {
+func (o *ossClient) Delete(ctx context.Context, key string) error {
 	return nil
 }
 

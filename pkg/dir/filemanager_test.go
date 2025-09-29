@@ -24,7 +24,7 @@ func newMockStorage() *mockStorage {
 	}
 }
 
-func (m *mockStorage) List(prefix string) ([]string, error) {
+func (m *mockStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	var result []string
 	for key := range m.files {
 		if prefix == "" || strings.HasPrefix(key, prefix) {
@@ -34,12 +34,12 @@ func (m *mockStorage) List(prefix string) ([]string, error) {
 	return result, nil
 }
 
-func (m *mockStorage) Upload(key string, data []byte) error {
+func (m *mockStorage) Upload(ctx context.Context, key string, data []byte) error {
 	m.files[key] = data
 	return nil
 }
 
-func (m *mockStorage) Download(key string) ([]byte, error) {
+func (m *mockStorage) Download(ctx context.Context, key string) ([]byte, error) {
 	data, exists := m.files[key]
 	if !exists {
 		return nil, os.ErrNotExist
@@ -47,7 +47,7 @@ func (m *mockStorage) Download(key string) ([]byte, error) {
 	return data, nil
 }
 
-func (m *mockStorage) Delete(key string) error {
+func (m *mockStorage) Delete(ctx context.Context, key string) error {
 	delete(m.files, key)
 	return nil
 }

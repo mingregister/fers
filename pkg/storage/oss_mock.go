@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,7 @@ func NewOSSMock(base string) Client {
 	return &ossMock{base: base}
 }
 
-func (o *ossMock) List(prefix string) ([]string, error) {
+func (o *ossMock) List(ctx context.Context, prefix string) ([]string, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	var out []string
@@ -52,7 +53,7 @@ func (o *ossMock) keyPath(key string) string {
 	return filepath.Join(o.base, filepath.FromSlash(key))
 }
 
-func (o *ossMock) Upload(key string, data []byte) error {
+func (o *ossMock) Upload(ctx context.Context, key string, data []byte) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	p := o.keyPath(key)
@@ -63,13 +64,13 @@ func (o *ossMock) Upload(key string, data []byte) error {
 	return os.WriteFile(p, data, 0o644)
 }
 
-func (o *ossMock) Download(key string) ([]byte, error) {
+func (o *ossMock) Download(ctx context.Context, key string) ([]byte, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	p := o.keyPath(key)
 	return os.ReadFile(p)
 }
 
-func (o *ossMock) Delete(key string) error {
+func (o *ossMock) Delete(ctx context.Context, key string) error {
 	return nil
 }

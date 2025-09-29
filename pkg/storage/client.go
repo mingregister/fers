@@ -1,13 +1,15 @@
 package storage
 
+import "context"
+
 type Client interface {
 	// List all object keys (relative paths) under given prefix (empty => list all)
-	List(prefix string) ([]string, error)
+	List(ctx context.Context, prefix string) ([]string, error)
 	// Upload object with given key and content
-	Upload(key string, data []byte) error
+	Upload(ctx context.Context, key string, data []byte) error
 	// Download object by key
-	Download(key string) ([]byte, error)
+	Download(ctx context.Context, key string) ([]byte, error)
 	// Delete removes the value for a key.
 	// Returns nil if successful or key doesn't exist.
-	Delete(key string) error
+	Delete(ctx context.Context, key string) error
 }
