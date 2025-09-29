@@ -3,6 +3,7 @@
 app.exe
 *.exe
 tmp
+fyne-cross
 
 *.log
 

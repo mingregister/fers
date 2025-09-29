@@ -122,6 +122,12 @@ func (ui *AppUI) setupUI() {
 		ui.logger.Debug("right click", slog.String("item", ui.selectedName))
 		ui.showContextMenu(pos)
 	}
+	ui.rightClickableList.OnItemDoubleTapped = func(i int) {
+		ui.selectedIndex = i
+		ui.selectedName = ui.items[i]
+		ui.logger.Debug("double click", slog.String("item", ui.selectedName))
+		ui.handleDoubleClick()
+	}
 	ui.rightClickableList.SetItems(ui.items)
 	ui.rightClickableList.Build()
 
@@ -133,16 +139,8 @@ func (ui *AppUI) setupUI() {
 	logScroll := container.NewScroll(ui.logWidget)
 	logScroll.SetMinSize(fyne.NewSize(LogPaneMinWidth, LogPaneMinHeight))
 
-	// Navigation buttons
-	navButtons := container.NewHBox(
-		widget.NewButton("Up", ui.goUpDirectory),
-		widget.NewButton("Enter", ui.enterSelectedDirectory),
-	)
-
 	// Operation buttons
 	buttons := container.NewVBox(
-		navButtons,
-		widget.NewSeparator(),
 		ui.createEncryptUploadButton(),
 		ui.createSyncDownloadButton(),
 		ui.createDownloadSpecificButton(),
@@ -166,7 +164,7 @@ func (ui *AppUI) setupUI() {
 
 // refreshItems updates the items list
 func (ui *AppUI) refreshItems() {
-	ui.items = dir.List(ui.currentDir)
+	ui.items = dir.ListWithParent(ui.currentDir, ui.fileManager.GetWorkingDir())
 }
 
 // refreshList refreshes the UI list
@@ -226,6 +224,17 @@ func (ui *AppUI) enterSelectedDirectory() {
 		return
 	}
 	ui.enterDirectory(ui.selectedName)
+}
+
+// handleDoubleClick handles double-click navigation
+func (ui *AppUI) handleDoubleClick() {
+	if ui.selectedName == ".." {
+		// 双击".."返回上一级目录
+		ui.goUpDirectory()
+	} else {
+		// 双击其他项目，尝试进入目录
+		ui.enterDirectory(ui.selectedName)
+	}
 }
 
 // enterDirectory enters the specified directory
