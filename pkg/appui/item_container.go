@@ -8,6 +8,7 @@ import (
 var _ fyne.Widget = (*ItemContainer)(nil)
 var _ fyne.Tappable = (*ItemContainer)(nil)
 var _ fyne.SecondaryTappable = (*ItemContainer)(nil)
+var _ fyne.DoubleTappable = (*ItemContainer)(nil)
 
 // ItemContainer 是单个列表项，只负责显示文字和点击回调
 type ItemContainer struct {
@@ -16,6 +17,7 @@ type ItemContainer struct {
 	index          int
 	onTapped       func(index int)
 	onRightClicked func(index int, pos fyne.Position)
+	onDoubleTapped func(index int)
 }
 
 // NewItemContainer 创建新ItemContainer
@@ -27,6 +29,11 @@ func NewItemContainer(onTapped func(int), onRightClicked func(int, fyne.Position
 	}
 	ic.ExtendBaseWidget(ic)
 	return ic
+}
+
+// SetOnDoubleTapped 设置双击回调
+func (ic *ItemContainer) SetOnDoubleTapped(callback func(int)) {
+	ic.onDoubleTapped = callback
 }
 
 // CreateRenderer 实现 fyne.Widget 接口
@@ -55,5 +62,12 @@ func (ic *ItemContainer) Tapped(pe *fyne.PointEvent) {
 func (ic *ItemContainer) TappedSecondary(pe *fyne.PointEvent) {
 	if ic.onRightClicked != nil {
 		ic.onRightClicked(ic.index, pe.AbsolutePosition)
+	}
+}
+
+// DoubleTapped 双击
+func (ic *ItemContainer) DoubleTapped(pe *fyne.PointEvent) {
+	if ic.onDoubleTapped != nil {
+		ic.onDoubleTapped(ic.index)
 	}
 }

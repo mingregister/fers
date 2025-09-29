@@ -10,10 +10,11 @@ var _ fyne.Widget = (*RightClickableList)(nil)
 // RightClickableList 是可右键点击的列表控件
 type RightClickableList struct {
 	widget.BaseWidget
-	list             *widget.List
-	items            []string
-	OnItemTapped     func(index int)
-	OnItemRightClick func(index int, pos fyne.Position)
+	list               *widget.List
+	items              []string
+	OnItemTapped       func(index int)
+	OnItemRightClick   func(index int, pos fyne.Position)
+	OnItemDoubleTapped func(index int)
 }
 
 // NewRightClickableList 创建新RightClickableList
@@ -36,7 +37,7 @@ func (rcl *RightClickableList) Build() {
 	rcl.list = widget.NewList(
 		func() int { return len(rcl.items) },
 		func() fyne.CanvasObject {
-			return NewItemContainer(
+			itemContainer := NewItemContainer(
 				func(i int) {
 					if rcl.OnItemTapped != nil {
 						rcl.OnItemTapped(i)
@@ -48,6 +49,13 @@ func (rcl *RightClickableList) Build() {
 					}
 				},
 			)
+			// 设置双击回调
+			itemContainer.SetOnDoubleTapped(func(i int) {
+				if rcl.OnItemDoubleTapped != nil {
+					rcl.OnItemDoubleTapped(i)
+				}
+			})
+			return itemContainer
 		},
 		func(i int, o fyne.CanvasObject) {
 			itemContainer := o.(*ItemContainer)
