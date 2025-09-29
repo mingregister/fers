@@ -18,14 +18,16 @@ var _ fyne.DoubleTappable = (*ItemContainer)(nil)
 // ItemContainer 是单个列表项，只负责显示文字和点击回调
 type ItemContainer struct {
 	widget.BaseWidget
-	label          *widget.Label
-	background     *canvas.Rectangle
-	containerObj   fyne.CanvasObject
-	index          int
-	selected       bool
-	onTapped       func(index int)
-	onRightClicked func(index int, pos fyne.Position)
-	onDoubleTapped func(index int)
+	label            *widget.Label
+	background       *canvas.Rectangle
+	containerObj     fyne.CanvasObject
+	index            int
+	selected         bool
+	selectionColor   color.Color
+	transparentColor color.Color
+	onTapped         func(index int)
+	onRightClicked   func(index int, pos fyne.Position)
+	onDoubleTapped   func(index int)
 }
 
 // NewItemContainer 创建新ItemContainer
@@ -34,11 +36,13 @@ func NewItemContainer(onTapped func(int), onRightClicked func(int, fyne.Position
 	background := canvas.NewRectangle(color.Transparent)
 
 	ic := &ItemContainer{
-		label:          label,
-		background:     background,
-		containerObj:   container.NewBorder(nil, nil, nil, nil, label),
-		onTapped:       onTapped,
-		onRightClicked: onRightClicked,
+		label:            label,
+		background:       background,
+		containerObj:     container.NewBorder(nil, nil, nil, nil, label),
+		selectionColor:   theme.Color(theme.ColorNameSelection),
+		transparentColor: color.Transparent,
+		onTapped:         onTapped,
+		onRightClicked:   onRightClicked,
 	}
 	ic.ExtendBaseWidget(ic)
 	return ic
@@ -75,15 +79,16 @@ func (ic *ItemContainer) SetSelected(selected bool) {
 	}
 
 	ic.selected = selected
+
+	// 使用缓存的颜色，避免重复查询主题系统
 	if selected {
-		ic.background.FillColor = theme.Color(theme.ColorNameSelection)
+		ic.background.FillColor = ic.selectionColor
 	} else {
-		ic.background.FillColor = color.Transparent
+		ic.background.FillColor = ic.transparentColor
 	}
 
-	// 立即刷新背景和整个组件
+	// 只刷新背景，避免双重刷新
 	ic.background.Refresh()
-	ic.Refresh()
 }
 
 // IsSelected 获取选中状态

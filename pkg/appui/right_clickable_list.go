@@ -62,9 +62,18 @@ func (rcl *RightClickableList) Build() {
 		},
 		func(i int, o fyne.CanvasObject) {
 			itemContainer := o.(*ItemContainer)
-			itemContainer.SetText(rcl.items[i])
-			itemContainer.SetIndex(i)
-			itemContainer.SetSelected(i == rcl.selectedIndex)
+			// 只在必要时更新文本和索引
+			if itemContainer.label.Text != rcl.items[i] {
+				itemContainer.SetText(rcl.items[i])
+			}
+			if itemContainer.index != i {
+				itemContainer.SetIndex(i)
+			}
+			// 只在选中状态真正变化时才调用SetSelected
+			isSelected := i == rcl.selectedIndex
+			if itemContainer.IsSelected() != isSelected {
+				itemContainer.SetSelected(isSelected)
+			}
 		},
 	)
 }
