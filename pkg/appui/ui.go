@@ -114,6 +114,7 @@ func (ui *AppUI) setupUI() {
 	ui.rightClickableList.OnItemTapped = func(i int) {
 		ui.selectedIndex = i
 		ui.selectedName = ui.items[i]
+		ui.rightClickableList.SetSelectedIndex(i)
 		ui.logger.Debug("left click", slog.String("item", ui.selectedName))
 	}
 	ui.rightClickableList.OnItemRightClick = func(i int, pos fyne.Position) {

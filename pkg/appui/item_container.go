@@ -1,7 +1,12 @@
 package appui
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -14,7 +19,10 @@ var _ fyne.DoubleTappable = (*ItemContainer)(nil)
 type ItemContainer struct {
 	widget.BaseWidget
 	label          *widget.Label
+	background     *canvas.Rectangle
+	containerObj   fyne.CanvasObject
 	index          int
+	selected       bool
 	onTapped       func(index int)
 	onRightClicked func(index int, pos fyne.Position)
 	onDoubleTapped func(index int)
@@ -22,8 +30,13 @@ type ItemContainer struct {
 
 // NewItemContainer 创建新ItemContainer
 func NewItemContainer(onTapped func(int), onRightClicked func(int, fyne.Position)) *ItemContainer {
+	label := widget.NewLabel("")
+	background := canvas.NewRectangle(color.Transparent)
+
 	ic := &ItemContainer{
-		label:          widget.NewLabel(""),
+		label:          label,
+		background:     background,
+		containerObj:   container.NewBorder(nil, nil, nil, nil, label),
 		onTapped:       onTapped,
 		onRightClicked: onRightClicked,
 	}
@@ -38,7 +51,11 @@ func (ic *ItemContainer) SetOnDoubleTapped(callback func(int)) {
 
 // CreateRenderer 实现 fyne.Widget 接口
 func (ic *ItemContainer) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(ic.label)
+	return &itemContainerRenderer{
+		container:  ic,
+		background: ic.background,
+		content:    ic.containerObj,
+	}
 }
 
 // SetText 更新显示文本
@@ -49,6 +66,22 @@ func (ic *ItemContainer) SetText(text string) {
 // SetIndex 设置当前索引
 func (ic *ItemContainer) SetIndex(i int) {
 	ic.index = i
+}
+
+// SetSelected 设置选中状态
+func (ic *ItemContainer) SetSelected(selected bool) {
+	ic.selected = selected
+	if selected {
+		ic.background.FillColor = theme.Color(theme.ColorNameSelection)
+	} else {
+		ic.background.FillColor = color.Transparent
+	}
+	ic.background.Refresh()
+}
+
+// IsSelected 获取选中状态
+func (ic *ItemContainer) IsSelected() bool {
+	return ic.selected
 }
 
 // Tapped 左键点击
@@ -71,3 +104,30 @@ func (ic *ItemContainer) DoubleTapped(pe *fyne.PointEvent) {
 		ic.onDoubleTapped(ic.index)
 	}
 }
+
+// itemContainerRenderer 自定义渲染器
+type itemContainerRenderer struct {
+	container  *ItemContainer
+	background *canvas.Rectangle
+	content    fyne.CanvasObject
+}
+
+func (r *itemContainerRenderer) Layout(size fyne.Size) {
+	r.background.Resize(size)
+	r.content.Resize(size)
+}
+
+func (r *itemContainerRenderer) MinSize() fyne.Size {
+	return r.content.MinSize()
+}
+
+func (r *itemContainerRenderer) Refresh() {
+	r.background.Refresh()
+	r.content.Refresh()
+}
+
+func (r *itemContainerRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.background, r.content}
+}
+
+func (r *itemContainerRenderer) Destroy() {}

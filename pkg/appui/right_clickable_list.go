@@ -12,6 +12,7 @@ type RightClickableList struct {
 	widget.BaseWidget
 	list               *widget.List
 	items              []string
+	selectedIndex      int
 	OnItemTapped       func(index int)
 	OnItemRightClick   func(index int, pos fyne.Position)
 	OnItemDoubleTapped func(index int)
@@ -19,7 +20,9 @@ type RightClickableList struct {
 
 // NewRightClickableList 创建新RightClickableList
 func NewRightClickableList() *RightClickableList {
-	rcl := &RightClickableList{}
+	rcl := &RightClickableList{
+		selectedIndex: -1,
+	}
 	rcl.ExtendBaseWidget(rcl)
 	return rcl
 }
@@ -61,6 +64,7 @@ func (rcl *RightClickableList) Build() {
 			itemContainer := o.(*ItemContainer)
 			itemContainer.SetText(rcl.items[i])
 			itemContainer.SetIndex(i)
+			itemContainer.SetSelected(i == rcl.selectedIndex)
 		},
 	)
 }
@@ -77,10 +81,25 @@ func (rcl *RightClickableList) Refresh() {
 	}
 }
 
+// SetSelectedIndex 设置选中的索引
+func (rcl *RightClickableList) SetSelectedIndex(index int) {
+	rcl.selectedIndex = index
+	if rcl.list != nil {
+		rcl.list.Refresh()
+	}
+}
+
+// GetSelectedIndex 获取选中的索引
+func (rcl *RightClickableList) GetSelectedIndex() int {
+	return rcl.selectedIndex
+}
+
 // UnselectAll 取消选中
 func (rcl *RightClickableList) UnselectAll() {
+	rcl.selectedIndex = -1
 	if rcl.list != nil {
 		rcl.list.UnselectAll()
+		rcl.list.Refresh()
 	}
 }
 
