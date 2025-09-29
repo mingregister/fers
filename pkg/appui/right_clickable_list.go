@@ -83,7 +83,13 @@ func (rcl *RightClickableList) Refresh() {
 
 // SetSelectedIndex 设置选中的索引
 func (rcl *RightClickableList) SetSelectedIndex(index int) {
+	if rcl.selectedIndex == index {
+		return // 状态没有变化，直接返回
+	}
+
 	rcl.selectedIndex = index
+
+	// 立即刷新列表以更新选中状态
 	if rcl.list != nil {
 		rcl.list.Refresh()
 	}

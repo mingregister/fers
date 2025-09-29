@@ -70,13 +70,20 @@ func (ic *ItemContainer) SetIndex(i int) {
 
 // SetSelected 设置选中状态
 func (ic *ItemContainer) SetSelected(selected bool) {
+	if ic.selected == selected {
+		return // 状态没有变化，直接返回
+	}
+
 	ic.selected = selected
 	if selected {
 		ic.background.FillColor = theme.Color(theme.ColorNameSelection)
 	} else {
 		ic.background.FillColor = color.Transparent
 	}
+
+	// 立即刷新背景和整个组件
 	ic.background.Refresh()
+	ic.Refresh()
 }
 
 // IsSelected 获取选中状态
