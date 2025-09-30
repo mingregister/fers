@@ -162,6 +162,7 @@ func (fm *FileManager) SyncDownload(ctx context.Context, prefix string) error {
 
 // SyncUpload uploads missing local files to remote storage
 func (fm *FileManager) SyncUpload(ctx context.Context, prefix string) error {
+	// NOTE: 远程没有这个目录的时候，怎么处理?
 	remoteFiles, err := fm.storage.List(ctx, NormalizePath(prefix))
 	if err != nil {
 		return fmt.Errorf("failed to list remote files: %w", err)

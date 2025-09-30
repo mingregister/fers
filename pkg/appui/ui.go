@@ -311,7 +311,20 @@ func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 func (ui *AppUI) createSyncDownloadButton() *widget.Button {
 	return widget.NewButton("Sync Download", func() {
 		ui.runOperation("Sync Download", func(ctx context.Context) error {
-			err := ui.fileManager.SyncDownload(ctx, "")
+			relativePath, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+			if err != nil {
+				ui.logger.Warn("Failed to get relative path, using empty prefix",
+					slog.String("currentDir", ui.currentDir),
+					slog.String("workingDir", ui.fileManager.GetWorkingDir()),
+					slog.String("error", err.Error()))
+				relativePath = ""
+			}
+
+			// 如果相对路径是 "."，表示当前就在工作目录，使用空字符串
+			if relativePath == "." {
+				relativePath = ""
+			}
+			err = ui.fileManager.SyncDownload(ctx, relativePath)
 			if err == nil {
 				ui.refreshList()
 			}
@@ -378,7 +391,21 @@ func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 func (ui *AppUI) createSyncUploadButton() *widget.Button {
 	return widget.NewButton("Sync Upload", func() {
 		ui.runOperation("Sync Upload", func(ctx context.Context) error {
-			return ui.fileManager.SyncUpload(ctx, "")
+			relativePath, err := filepath.Rel(ui.fileManager.GetWorkingDir(), ui.currentDir)
+			if err != nil {
+				ui.logger.Warn("Failed to get relative path, using empty prefix",
+					slog.String("currentDir", ui.currentDir),
+					slog.String("workingDir", ui.fileManager.GetWorkingDir()),
+					slog.String("error", err.Error()))
+				relativePath = ""
+			}
+
+			// 如果相对路径是 "."，表示当前就在工作目录，使用空字符串
+			if relativePath == "." {
+				relativePath = ""
+			}
+
+			return ui.fileManager.SyncUpload(ctx, relativePath)
 		})
 	})
 }
