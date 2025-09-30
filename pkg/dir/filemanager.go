@@ -114,8 +114,8 @@ func (fm *FileManager) DownloadAndDecryptFile(remotePath, localPath string) erro
 }
 
 // SyncDownload downloads missing files from remote storage
-func (fm *FileManager) SyncDownload(ctx context.Context) error {
-	remoteFiles, err := fm.storage.List(context.Background(), "")
+func (fm *FileManager) SyncDownload(ctx context.Context, prefix string) error {
+	remoteFiles, err := fm.storage.List(ctx, NormalizePath(prefix))
 	if err != nil {
 		return fmt.Errorf("failed to list remote files: %w", err)
 	}
@@ -161,8 +161,8 @@ func (fm *FileManager) SyncDownload(ctx context.Context) error {
 }
 
 // SyncUpload uploads missing local files to remote storage
-func (fm *FileManager) SyncUpload(ctx context.Context) error {
-	remoteFiles, err := fm.storage.List(context.Background(), "")
+func (fm *FileManager) SyncUpload(ctx context.Context, prefix string) error {
+	remoteFiles, err := fm.storage.List(ctx, NormalizePath(prefix))
 	if err != nil {
 		return fmt.Errorf("failed to list remote files: %w", err)
 	}

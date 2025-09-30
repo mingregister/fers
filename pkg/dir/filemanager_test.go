@@ -247,7 +247,7 @@ func TestFileManager_SyncDownload(t *testing.T) {
 
 	// Sync download
 	ctx := context.Background()
-	err = fm.SyncDownload(ctx)
+	err = fm.SyncDownload(ctx, "")
 	if err != nil {
 		t.Fatalf("SyncDownload failed: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestFileManager_SyncUpload(t *testing.T) {
 
 	// Sync upload
 	ctx := context.Background()
-	err = fm.SyncUpload(ctx)
+	err = fm.SyncUpload(ctx, "")
 	if err != nil {
 		t.Fatalf("SyncUpload failed: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestFileManager_ContextCancellation(t *testing.T) {
 	// 	t.Logf("Got error for SyncDownload (expected context cancellation): %v", err)
 	// }
 
-	err = fm.SyncUpload(ctx)
+	err = fm.SyncUpload(ctx, "")
 	if err == nil {
 		t.Error("Expected error for cancelled context in SyncUpload, got nil")
 	} else if err != context.Canceled {

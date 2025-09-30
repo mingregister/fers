@@ -311,7 +311,7 @@ func (ui *AppUI) createEncryptUploadButton() *widget.Button {
 func (ui *AppUI) createSyncDownloadButton() *widget.Button {
 	return widget.NewButton("Sync Download", func() {
 		ui.runOperation("Sync Download", func(ctx context.Context) error {
-			err := ui.fileManager.SyncDownload(ctx)
+			err := ui.fileManager.SyncDownload(ctx, "")
 			if err == nil {
 				ui.refreshList()
 			}
@@ -378,7 +378,7 @@ func (ui *AppUI) createDeleteLocalFileButton() *widget.Button {
 func (ui *AppUI) createSyncUploadButton() *widget.Button {
 	return widget.NewButton("Sync Upload", func() {
 		ui.runOperation("Sync Upload", func(ctx context.Context) error {
-			return ui.fileManager.SyncUpload(ctx)
+			return ui.fileManager.SyncUpload(ctx, "")
 		})
 	})
 }

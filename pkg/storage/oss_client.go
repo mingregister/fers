@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
@@ -18,29 +17,6 @@ type ossClient struct {
 	client     *oss.Client
 	bucketName string
 	workDir    string
-}
-
-// normalizePath 规范化工作目录路径
-func normalizePath(path string) string {
-	if path == "" || path == "." {
-		return ""
-	}
-
-	// 使用filepath.Clean清理路径（兼容不同操作系统）
-	path = filepath.Clean(path)
-
-	// 转换为Unix风格的斜杠（OSS使用/作为路径分隔符）
-	path = filepath.ToSlash(path)
-
-	// 移除开头和结尾的斜杠，但保留中间路径
-	path = strings.Trim(path, "/")
-
-	// 如果清理后为空，返回空字符串
-	if path == "." || path == "" {
-		return ""
-	}
-
-	return path
 }
 
 // NewOSSClient creates a new OSS client using SDK v2
@@ -57,7 +33,7 @@ func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, wo
 	// Create OSS client
 	client := oss.NewClient(cfg)
 
-	workDir = normalizePath(workDir)
+	workDir = NormalizePath(workDir)
 	return &ossClient{
 		client:     client,
 		bucketName: bucketName,
@@ -155,7 +131,7 @@ func (o *ossClient) Download(ctx context.Context, key string) ([]byte, error) {
 
 func (o *ossClient) getFullPath(key string) string {
 	fullPath := fmt.Sprintf("%s/%s", o.workDir, key)
-	return normalizePath(fullPath)
+	return NormalizePath(fullPath)
 }
 
 func (o *ossClient) Delete(ctx context.Context, key string) error {
