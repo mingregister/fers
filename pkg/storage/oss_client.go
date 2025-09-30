@@ -67,7 +67,7 @@ func NewOSSClient(endpoint, accessKeyID, accessKeySecret, bucketName, region, wo
 
 // List all object keys under given prefix
 func (o *ossClient) List(ctx context.Context, prefix string) ([]string, error) {
-	var objects []string
+	objects := make([]string, 0, 128)
 
 	// Create list objects request
 	request := &oss.ListObjectsV2Request{

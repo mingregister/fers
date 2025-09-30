@@ -25,7 +25,7 @@ func NewOSSMock(base string) Client {
 func (o *ossMock) List(ctx context.Context, prefix string) ([]string, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	var out []string
+	out := make([]string, 0, 128)
 
 	root := filepath.Join(o.base, filepath.FromSlash(prefix))
 	prefix = filepath.ToSlash(prefix)
