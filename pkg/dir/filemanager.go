@@ -54,7 +54,7 @@ func (fm *FileManager) EncryptAndUploadFile(filePath, relativePath string) error
 		return fmt.Errorf("failed to encrypt file %s: %w", filePath, err)
 	}
 
-	if err := fm.storage.Upload(filepath.ToSlash(relativePath), encrypted); err != nil {
+	if err := fm.storage.Upload(context.Background(), filepath.ToSlash(relativePath), encrypted); err != nil {
 		return fmt.Errorf("failed to upload file %s: %w", relativePath, err)
 	}
 
@@ -90,7 +90,7 @@ func (fm *FileManager) EncryptAndUploadDirectory(ctx context.Context, dirPath st
 
 // DownloadAndDecryptFile downloads and decrypts a single file
 func (fm *FileManager) DownloadAndDecryptFile(remotePath, localPath string) error {
-	encrypted, err := fm.storage.Download(remotePath)
+	encrypted, err := fm.storage.Download(context.Background(), remotePath)
 	if err != nil {
 		return fmt.Errorf("failed to download file %s: %w", remotePath, err)
 	}
@@ -114,8 +114,8 @@ func (fm *FileManager) DownloadAndDecryptFile(remotePath, localPath string) erro
 }
 
 // SyncDownload downloads missing files from remote storage
-func (fm *FileManager) SyncDownload(ctx context.Context) error {
-	remoteFiles, err := fm.storage.List("")
+func (fm *FileManager) SyncDownload(ctx context.Context, prefix string) error {
+	remoteFiles, err := fm.storage.List(ctx, NormalizePath(prefix))
 	if err != nil {
 		return fmt.Errorf("failed to list remote files: %w", err)
 	}
@@ -161,8 +161,9 @@ func (fm *FileManager) SyncDownload(ctx context.Context) error {
 }
 
 // SyncUpload uploads missing local files to remote storage
-func (fm *FileManager) SyncUpload(ctx context.Context) error {
-	remoteFiles, err := fm.storage.List("")
+func (fm *FileManager) SyncUpload(ctx context.Context, prefix string) error {
+	// NOTE: 远程没有这个目录的时候，怎么处理?
+	remoteFiles, err := fm.storage.List(ctx, NormalizePath(prefix))
 	if err != nil {
 		return fmt.Errorf("failed to list remote files: %w", err)
 	}
@@ -206,7 +207,7 @@ func (fm *FileManager) SyncUpload(ctx context.Context) error {
 
 // ListRemoteFiles returns a list of all remote files
 func (fm *FileManager) ListRemoteFiles(prefix string) ([]string, error) {
-	return fm.storage.List(filepath.ToSlash(prefix))
+	return fm.storage.List(context.Background(), filepath.ToSlash(prefix))
 }
 
 // DownloadSpecificFile downloads a specific file from remote storage

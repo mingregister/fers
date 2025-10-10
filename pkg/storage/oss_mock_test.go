@@ -61,7 +61,7 @@ func TestOSSMock_Upload(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := client.Upload(tc.key, tc.data)
+			err := client.Upload(t.Context(), tc.key, tc.data)
 			if err != nil {
 				t.Fatalf("Upload failed: %v", err)
 			}
@@ -93,13 +93,13 @@ func TestOSSMock_Download(t *testing.T) {
 	testData := []byte("download test data")
 	key := "download/test.txt"
 
-	err := client.Upload(key, testData)
+	err := client.Upload(t.Context(), key, testData)
 	if err != nil {
 		t.Fatalf("Upload failed: %v", err)
 	}
 
 	// Download the data
-	downloaded, err := client.Download(key)
+	downloaded, err := client.Download(t.Context(), key)
 	if err != nil {
 		t.Fatalf("Download failed: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestOSSMock_DownloadNonExistent(t *testing.T) {
 	tempDir := t.TempDir()
 	client := NewOSSMock(tempDir)
 
-	_, err := client.Download("nonexistent.txt")
+	_, err := client.Download(t.Context(), "nonexistent.txt")
 	if err == nil {
 		t.Error("Download should fail for non-existent file")
 	}
@@ -133,7 +133,7 @@ func TestOSSMock_List(t *testing.T) {
 	}
 
 	for key, data := range testFiles {
-		err := client.Upload(key, data)
+		err := client.Upload(t.Context(), key, data)
 		if err != nil {
 			t.Fatalf("Upload failed for %s: %v", key, err)
 		}
@@ -179,7 +179,7 @@ func TestOSSMock_List(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			files, err := client.List(tc.prefix)
+			files, err := client.List(t.Context(), tc.prefix)
 			if tc.expectError {
 				if err == nil {
 					t.Errorf("Expected error for prefix %s, but got none", tc.prefix)
@@ -227,7 +227,7 @@ func TestOSSMock_ListEmptyDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 	client := NewOSSMock(tempDir)
 
-	files, err := client.List("")
+	files, err := client.List(t.Context(), "")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestOSSMock_Delete(t *testing.T) {
 
 	// Note: The current implementation of Delete is a no-op
 	// This test verifies that it doesn't return an error
-	err := client.Delete("any-key")
+	err := client.Delete(t.Context(), "any-key")
 	if err != nil {
 		t.Errorf("Delete should not return error, got: %v", err)
 	}
@@ -263,14 +263,14 @@ func TestOSSMock_ConcurrentOperations(t *testing.T) {
 			key := fmt.Sprintf("concurrent/file%d.txt", id)
 			data := []byte(fmt.Sprintf("data%d", id))
 
-			err := client.Upload(key, data)
+			err := client.Upload(t.Context(), key, data)
 			if err != nil {
 				t.Errorf("Concurrent upload failed for %s: %v", key, err)
 				return
 			}
 
 			// Verify download
-			downloaded, err := client.Download(key)
+			downloaded, err := client.Download(t.Context(), key)
 			if err != nil {
 				t.Errorf("Concurrent download failed for %s: %v", key, err)
 				return
@@ -288,7 +288,7 @@ func TestOSSMock_ConcurrentOperations(t *testing.T) {
 	}
 
 	// Verify all files were created
-	files, err := client.List("concurrent/")
+	files, err := client.List(t.Context(), "concurrent/")
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -321,13 +321,13 @@ func TestOSSMock_PathSeparators(t *testing.T) {
 		t.Run(tc.key, func(t *testing.T) {
 			data := []byte("test data")
 
-			err := client.Upload(tc.key, data)
+			err := client.Upload(t.Context(), tc.key, data)
 			if err != nil {
 				t.Fatalf("Upload failed: %v", err)
 			}
 
 			// Verify file appears in list with correct path format
-			files, err := client.List("")
+			files, err := client.List(t.Context(), "")
 			if err != nil {
 				t.Fatalf("List failed: %v", err)
 			}
@@ -345,7 +345,7 @@ func TestOSSMock_PathSeparators(t *testing.T) {
 			}
 
 			// Verify download works
-			downloaded, err := client.Download(tc.key)
+			downloaded, err := client.Download(t.Context(), tc.key)
 			if err != nil {
 				t.Fatalf("Download failed: %v", err)
 			}
